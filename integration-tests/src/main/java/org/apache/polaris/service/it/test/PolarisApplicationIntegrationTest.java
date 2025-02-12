@@ -464,8 +464,7 @@ public class PolarisApplicationIntegrationTest {
               .assignUUID()
               .addPartitionSpec(PartitionSpec.unpartitioned())
               .addSortOrder(SortOrder.unsorted())
-              .addSchema(
-                  new Schema(Types.NestedField.of(1, false, "col1", Types.StringType.get())), 1)
+              .addSchema(new Schema(Types.NestedField.of(1, false, "col1", Types.StringType.get())))
               .build();
       TableMetadataParser.write(tableMetadata, fileIo.newOutputFile(metadataLocation));
 
@@ -511,7 +510,7 @@ public class PolarisApplicationIntegrationTest {
               .assignUUID()
               .addPartitionSpec(PartitionSpec.unpartitioned())
               .addSortOrder(SortOrder.unsorted())
-              .addSchema(new Schema(col1), 1)
+              .addSchema(new Schema(col1))
               .build();
       TableMetadataParser.write(tableMetadata, fileIo.newOutputFile(metadataLocation));
 
@@ -563,8 +562,7 @@ public class PolarisApplicationIntegrationTest {
               .assignUUID()
               .addPartitionSpec(PartitionSpec.unpartitioned())
               .addSortOrder(SortOrder.unsorted())
-              .addSchema(
-                  new Schema(Types.NestedField.of(1, false, "col1", Types.StringType.get())), 1)
+              .addSchema(new Schema(Types.NestedField.of(1, false, "col1", Types.StringType.get())))
               .build();
       TableMetadataParser.write(tableMetadata, fileIo.newOutputFile(metadataLocation));
 
