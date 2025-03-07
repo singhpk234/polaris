@@ -34,6 +34,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -85,6 +86,7 @@ public class IcebergCatalogAdapter
     implements IcebergRestCatalogApiService, IcebergRestConfigurationApiService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IcebergCatalogAdapter.class);
+  private static final AtomicInteger counter = new AtomicInteger();
 
   private static final Set<Endpoint> DEFAULT_ENDPOINTS =
       ImmutableSet.<Endpoint>builder()
@@ -467,9 +469,22 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    return Response.ok(
-            newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier))
+    // work around to mimic and break infinite loop
+    // otherwise Trino complains that the view is recursive.
+    // track how many times the view load is being called
+    // so as when enter the view resolution phase we can break
+    // it, and this time in view resolution would not do a redirect
+    // and simply do a look-up on the exact identifier.
+    counter.addAndGet(1);
+    String fView = view;
+    if (counter.get() % 2 == 1) {
+      fView = view + "_secure";
+    }
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
+    LOGGER.atInfo().log("Loaded view attempt " + counter.get());
+    LOGGER.atInfo().log("Loaded view " + o);
+    return Response.ok(o)
         .build();
   }
 
@@ -481,8 +496,21 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    newHandlerWrapper(realmContext, securityContext, prefix).viewExists(tableIdentifier);
+    // work around to mimic and break infinite loop
+    // otherwise Trino complains that the view is recursive.
+    // track how many times the view load is being called
+    // so as when enter the view resolution phase we can break
+    // it, and this time in view resolution would not do a redirect
+    // and simply do a look-up on the exact identifier.
+    counter.addAndGet(1);
+    String fView = view;
+    if (counter.get() % 2 == 1) {
+      fView = view + "_secure";
+    }
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
+    LOGGER.atInfo().log("Loaded view attempt " + counter.get());
+    LOGGER.atInfo().log("Loaded view " + o);
     return Response.status(Response.Status.NO_CONTENT).build();
   }
 
