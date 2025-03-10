@@ -807,14 +807,31 @@ public class PolarisCatalogHandlerWrapper implements AutoCloseable {
   }
 
   public LoadTableResponse loadTable(TableIdentifier tableIdentifier, String snapshots) {
-    PolarisAuthorizableOperation op = PolarisAuthorizableOperation.LOAD_TABLE;
-    authorizeBasicTableLikeOperationOrThrow(op, PolarisEntitySubType.TABLE, tableIdentifier);
+    // modify the load table to "intercept" the referenced table and give back the orignal table
+    TableIdentifier modifiedTableIdentifier;
+    if (tableIdentifier.name().contains("secure_table_ref")) {
+      // reject the view ref table name and redirect to our table name
+      // we will need to reserve this suffix, to not allow exploitation.
+      modifiedTableIdentifier = TableIdentifier.of(tableIdentifier.namespace(), "test_polaris");
+    } else {
+        modifiedTableIdentifier = tableIdentifier;
+    }
+      PolarisAuthorizableOperation op = PolarisAuthorizableOperation.LOAD_TABLE;
+    authorizeBasicTableLikeOperationOrThrow(op, PolarisEntitySubType.TABLE, modifiedTableIdentifier);
 
-    return doCatalogOperation(() -> CatalogHandlers.loadTable(baseCatalog, tableIdentifier));
+    return doCatalogOperation(() -> CatalogHandlers.loadTable(baseCatalog, modifiedTableIdentifier));
   }
 
   public LoadTableResponse loadTableWithAccessDelegation(
       TableIdentifier tableIdentifier, String snapshots) {
+    TableIdentifier modifiedTableIdentifier;
+    if (tableIdentifier.name().contains("secure_table_ref")) {
+      // reject the view ref table name and redirect to our table name
+      // we will need to reserve this suffix, to not allow exploitation.
+      modifiedTableIdentifier = TableIdentifier.of(tableIdentifier.namespace(), "test_polaris");
+    } else {
+      modifiedTableIdentifier = tableIdentifier;
+    }
     // Here we have a single method that falls through multiple candidate
     // PolarisAuthorizableOperations because instead of identifying the desired operation up-front
     // and
@@ -830,10 +847,10 @@ public class PolarisCatalogHandlerWrapper implements AutoCloseable {
     try {
       // TODO: Refactor to have a boolean-return version of the helpers so we can fallthrough
       // easily.
-      authorizeBasicTableLikeOperationOrThrow(write, PolarisEntitySubType.TABLE, tableIdentifier);
+      authorizeBasicTableLikeOperationOrThrow(write, PolarisEntitySubType.TABLE, modifiedTableIdentifier);
       actionsRequested.add(PolarisStorageActions.WRITE);
     } catch (ForbiddenException e) {
-      authorizeBasicTableLikeOperationOrThrow(read, PolarisEntitySubType.TABLE, tableIdentifier);
+      authorizeBasicTableLikeOperationOrThrow(read, PolarisEntitySubType.TABLE, modifiedTableIdentifier);
     }
 
     PolarisResolvedPathWrapper catalogPath = resolutionManifest.getResolvedReferenceCatalogEntity();
@@ -861,7 +878,7 @@ public class PolarisCatalogHandlerWrapper implements AutoCloseable {
     // when data-access is specified but access delegation grants are not found.
     return doCatalogOperation(
         () -> {
-          Table table = baseCatalog.loadTable(tableIdentifier);
+          Table table = baseCatalog.loadTable(modifiedTableIdentifier);
 
           if (table instanceof BaseTable baseTable) {
             TableMetadata tableMetadata = baseTable.operations().current();
@@ -870,17 +887,17 @@ public class PolarisCatalogHandlerWrapper implements AutoCloseable {
             if (baseCatalog instanceof SupportsCredentialDelegation credentialDelegation) {
               LOGGER
                   .atDebug()
-                  .addKeyValue("tableIdentifier", tableIdentifier)
+                  .addKeyValue("tableIdentifier", modifiedTableIdentifier)
                   .addKeyValue("tableLocation", tableMetadata.location())
                   .log("Fetching client credentials for table");
               responseBuilder.addAllConfig(
                   credentialDelegation.getCredentialConfig(
-                      tableIdentifier, tableMetadata, actionsRequested));
+                      modifiedTableIdentifier, tableMetadata, actionsRequested));
             }
             return responseBuilder.build();
           } else if (table instanceof BaseMetadataTable) {
             // metadata tables are loaded on the client side, return NoSuchTableException for now
-            throw new NoSuchTableException("Table does not exist: %s", tableIdentifier.toString());
+            throw new NoSuchTableException("Table does not exist: %s", modifiedTableIdentifier.toString());
           }
 
           throw new IllegalStateException("Cannot wrap catalog that does not produce BaseTable");

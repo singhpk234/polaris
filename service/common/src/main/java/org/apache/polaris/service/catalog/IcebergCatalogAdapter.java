@@ -469,17 +469,9 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    // work around to mimic and break infinite loop
-    // otherwise Trino complains that the view is recursive.
-    // track how many times the view load is being called
-    // so as when enter the view resolution phase we can break
-    // it, and this time in view resolution would not do a redirect
-    // and simply do a look-up on the exact identifier.
-    counter.addAndGet(1);
-    String fView = view;
-    if (counter.get() % 2 == 1) {
-      fView = view + "_secure";
-    }
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
     TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
     Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
     LOGGER.atInfo().log("Loaded view attempt " + counter.get());
@@ -496,17 +488,9 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    // work around to mimic and break infinite loop
-    // otherwise Trino complains that the view is recursive.
-    // track how many times the view load is being called
-    // so as when enter the view resolution phase we can break
-    // it, and this time in view resolution would not do a redirect
-    // and simply do a look-up on the exact identifier.
-    counter.addAndGet(1);
-    String fView = view;
-    if (counter.get() % 2 == 1) {
-      fView = view + "_secure";
-    }
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
     TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
     Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
     LOGGER.atInfo().log("Loaded view attempt " + counter.get());
