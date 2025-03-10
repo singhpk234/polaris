@@ -34,6 +34,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -87,6 +88,7 @@ public class IcebergCatalogAdapter
     implements IcebergRestCatalogApiService, IcebergRestConfigurationApiService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(IcebergCatalogAdapter.class);
+  private static final AtomicInteger counter = new AtomicInteger();
 
   private static final Set<Endpoint> DEFAULT_ENDPOINTS =
       ImmutableSet.<Endpoint>builder()
@@ -488,9 +490,14 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    return Response.ok(
-            newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier))
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
+    LOGGER.atInfo().log("Loaded view attempt " + counter.get());
+    LOGGER.atInfo().log("Loaded view " + o);
+    return Response.ok(o)
         .build();
   }
 
@@ -502,8 +509,13 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    newHandlerWrapper(realmContext, securityContext, prefix).viewExists(tableIdentifier);
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Object o =  newHandlerWrapper(realmContext, securityContext, prefix).loadView(tableIdentifier);
+    LOGGER.atInfo().log("Loaded view attempt " + counter.get());
+    LOGGER.atInfo().log("Loaded view " + o);
     return Response.status(Response.Status.NO_CONTENT).build();
   }
 
