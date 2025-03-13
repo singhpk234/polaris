@@ -30,30 +30,14 @@ plugins {
 
 dependencies {
     implementation(project(":polaris-core"))
-    implementation(project(":polaris-jpa-model"))
     // do have the gradle
     implementation("org.apache.commons:commons-dbcp2:2.9.0")
     implementation("org.postgresql:postgresql:42.1.4")
-
-    implementation(libs.eclipselink)
 
     implementation(platform(libs.quarkus.bom))
     implementation("io.quarkus:quarkus-core")
 
     implementation(libs.slf4j.api)
-
-    val eclipseLinkDeps: String? = project.findProperty("eclipseLinkDeps") as String?
-    eclipseLinkDeps?.let {
-        val dependenciesList = it.split(",")
-        dependenciesList.forEach { dep ->
-            val trimmedDep = dep.trim()
-            if (isValidDep(trimmedDep)) {
-                implementation(trimmedDep)
-            } else {
-                throw GradleException("Invalid dependency format: $trimmedDep")
-            }
-        }
-    }
 
     // only for @VisibleForTesting
     compileOnly(libs.guava)

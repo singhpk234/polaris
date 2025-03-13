@@ -17,6 +17,8 @@
  * under the License.
  */
 
+package org.apache.polaris.extension.persistence.impl.jdbc;
+
 import org.apache.commons.dbcp2.BasicDataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -29,7 +31,7 @@ public class ConnectionManager {
         dataSource.setUrl("jdbc:postgresql://localhost:3306/mydatabase");
         dataSource.setUsername("myuser");
         dataSource.setPassword("mypassword");
-        dataSourceConfig.setDriverClassName("org.postgresql.Driver");
+        // dataSourceConfig.setDriverClassName("org.postgresql.Driver");
 
         dataSource.setMinIdle(5);
         dataSource.setMaxIdle(10);
