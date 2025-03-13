@@ -55,6 +55,7 @@ Apache Polaris is organized into the following modules:
 - Persistence modules:
   - `polaris-jpa-model` - The JPA entity definitions
   - `polaris-eclipselink` - The Eclipselink implementation of the MetaStoreManager interface
+  - `polaris-jdbc` - The JDBC implementation of the BasePersistence interface
  
 Apache Polaris is built using Gradle with Java 21+ and Docker 27+.
 

@@ -17,13 +17,34 @@
  * under the License.
  */
 
-import org.apache.polaris.core.persistence.BasePersistence;
+package org.apache.polaris.extension.persistence.impl.jdbc;
 
-public class PolarisJDBCBasePersistence implements BasePersistence {
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
-    public void executeQuery() {
+public class DatabaseOperations {
+
+    public void executeQuery(String query) {
         try (Connection connection = ConnectionManager.getConnection();
              Statement statement = connection.createStatement()) {
+            ResultSet resultSet = statement.executeQuery(query);
+
+            while (resultSet.next()) {
+                // Retrieve data by column name or index
+                int id = resultSet.getInt("id");
+                String name = resultSet.getString("name");
+                int age = resultSet.getInt("age");
+
+                // Alternatively, retrieve data by column index (1-based)
+                // int id = resultSet.getInt(1);
+                // String name = resultSet.getString(2);
+                // int age = resultSet.getInt(3);
+
+                // Process the retrieved data
+                System.out.println("ID: " + id + ", Name: " + name + ", Age: " + age);
+            }
 
             // Perform database operations
             // ...
