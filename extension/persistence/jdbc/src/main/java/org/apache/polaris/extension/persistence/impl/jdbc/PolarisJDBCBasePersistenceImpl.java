@@ -19,9 +19,14 @@
 
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.apache.polaris.core.PolarisCallContext;
 import org.apache.polaris.core.entity.*;
 import org.apache.polaris.core.persistence.BasePersistence;
+import org.apache.polaris.core.persistence.IntegrationPersistence;
+import org.apache.polaris.core.storage.PolarisStorageConfigurationInfo;
+import org.apache.polaris.core.storage.PolarisStorageIntegration;
 import org.apache.polaris.extension.persistence.impl.jdbc.mappers.PolarisBaseEntityMapper;
 import org.apache.polaris.extension.persistence.impl.jdbc.mappers.PolarisGrantRecordMapper;
 
@@ -29,11 +34,11 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class PolarisJDBCBasePersistenceImpl implements BasePersistence {
+public class PolarisJDBCBasePersistenceImpl implements BasePersistence, IntegrationPersistence {
 
     private final DatabaseOperations databaseOperations;
 
-    public PolarisJDBCBasePersistenceImpl(DatabaseOperations databaseOperations) {
+    public PolarisJDBCBasePersistenceImpl(DatabaseOperations databaseOperations, JdbcCrudQueryGenerator jdbcCrudQueryGenerator) {
         this.databaseOperations = databaseOperations;
     }
 
@@ -46,7 +51,15 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence {
     @Override
     public void writeEntity(PolarisCallContext callCtx, PolarisBaseEntity entity, boolean nameOrParentChanged, PolarisBaseEntity originalEntity) {
         // this is base entity class
-        databaseOperations.executeQuery(PolarisBaseEntityMapper.fromEntity(entity, originalEntity));
+        // get model from the base entity
+
+        String query;
+        if (originalEntity == null) {
+            query = JdbcCrudQueryGenerator.generateInsertQuery();
+        } else {
+            query = JdbcCrudQueryGenerator.generateUpdateQuery()
+        }
+        databaseOperations.executeQuery(query);
     }
 
     @Override
@@ -147,5 +160,45 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence {
     @Override
     public boolean hasChildren(PolarisCallContext callContext, PolarisEntityType optionalEntityType, long catalogId, long parentId) {
         return false;
+    }
+
+    @Nullable
+    @Override
+    public PolarisPrincipalSecrets loadPrincipalSecrets(@Nonnull PolarisCallContext callCtx, @Nonnull String clientId) {
+        return null;
+    }
+
+    @Nonnull
+    @Override
+    public PolarisPrincipalSecrets generateNewPrincipalSecrets(@Nonnull PolarisCallContext callCtx, @Nonnull String principalName, long principalId) {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public PolarisPrincipalSecrets rotatePrincipalSecrets(@Nonnull PolarisCallContext callCtx, @Nonnull String clientId, long principalId, boolean reset, @Nonnull String oldSecretHash) {
+        return null;
+    }
+
+    @Override
+    public void deletePrincipalSecrets(@Nonnull PolarisCallContext callCtx, @Nonnull String clientId, long principalId) {
+
+    }
+
+    @Nullable
+    @Override
+    public <T extends PolarisStorageConfigurationInfo> PolarisStorageIntegration<T> createStorageIntegration(@Nonnull PolarisCallContext callCtx, long catalogId, long entityId, PolarisStorageConfigurationInfo polarisStorageConfigurationInfo) {
+        return null;
+    }
+
+    @Override
+    public <T extends PolarisStorageConfigurationInfo> void persistStorageIntegrationIfNeeded(@Nonnull PolarisCallContext callContext, @Nonnull PolarisBaseEntity entity, @Nullable PolarisStorageIntegration<T> storageIntegration) {
+
+    }
+
+    @Nullable
+    @Override
+    public <T extends PolarisStorageConfigurationInfo> PolarisStorageIntegration<T> loadPolarisStorageIntegration(@Nonnull PolarisCallContext callContext, @Nonnull PolarisBaseEntity entity) {
+        return null;
     }
 }
