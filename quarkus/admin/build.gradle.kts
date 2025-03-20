@@ -35,6 +35,7 @@ dependencies {
   implementation(project(":polaris-api-iceberg-service"))
 
   runtimeOnly(project(":polaris-eclipselink"))
+  runtimeOnly(project(":polaris-jdbc"))
 
   implementation(enforcedPlatform(libs.quarkus.bom))
   implementation("io.quarkus:quarkus-picocli")
@@ -52,6 +53,7 @@ dependencies {
   testFixturesApi("org.testcontainers:postgresql")
 
   testRuntimeOnly(project(":polaris-eclipselink"))
+  testRuntimeOnly(project(":polaris-jdbc"))
   testRuntimeOnly("org.postgresql:postgresql")
 }
 
