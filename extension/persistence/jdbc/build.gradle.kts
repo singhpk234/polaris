@@ -18,48 +18,49 @@
  */
 
 fun isValidDep(dep: String): Boolean {
-    val depRegex = "^[\\w.]+:[\\w\\-.]+:[\\w\\-.]+$".toRegex()
-    return dep.matches(depRegex)
+  val depRegex = "^[\\w.]+:[\\w\\-.]+:[\\w\\-.]+$".toRegex()
+  return dep.matches(depRegex)
 }
 
 plugins {
-    id("polaris-server")
-    alias(libs.plugins.quarkus)
-    alias(libs.plugins.jandex)
+  id("polaris-server")
+  alias(libs.plugins.quarkus)
+  alias(libs.plugins.jandex)
 }
 
 dependencies {
-    implementation(project(":polaris-core"))
-    // do have the gradle
-    implementation("org.apache.commons:commons-dbcp2:2.9.0")
-    implementation("org.postgresql:postgresql:42.1.4")
+  implementation(project(":polaris-core"))
+  // do have the gradle
+  implementation("org.apache.commons:commons-dbcp2:2.9.0")
+  implementation("org.postgresql:postgresql:42.1.4")
 
-    implementation(platform(libs.quarkus.bom))
-    implementation("io.quarkus:quarkus-core")
+  implementation(platform(libs.quarkus.bom))
+  implementation("io.quarkus:quarkus-core")
 
-    implementation(libs.slf4j.api)
+  implementation(libs.slf4j.api)
 
-    // only for @VisibleForTesting
-    compileOnly(libs.guava)
+  // only for @VisibleForTesting
+  compileOnly(libs.guava)
 
-    compileOnly(libs.jakarta.annotation.api)
-    compileOnly(libs.jakarta.enterprise.cdi.api)
-    compileOnly(libs.jakarta.inject.api)
-    compileOnly("io.smallrye.common:smallrye-common-annotation") // @Identifier
-    compileOnly("io.smallrye.config:smallrye-config-core") // @ConfigMapping
+  compileOnly(libs.jakarta.annotation.api)
+  compileOnly(libs.jakarta.enterprise.cdi.api)
+  compileOnly(libs.jakarta.inject.api)
+  compileOnly("io.smallrye.common:smallrye-common-annotation") // @Identifier
+  compileOnly("io.smallrye.config:smallrye-config-core") // @ConfigMapping
 
-    compileOnly(platform(libs.jackson.bom))
-    compileOnly("com.fasterxml.jackson.core:jackson-annotations")
-    compileOnly("com.fasterxml.jackson.core:jackson-core")
+  compileOnly(platform(libs.jackson.bom))
+  compileOnly("com.fasterxml.jackson.core:jackson-annotations")
+  compileOnly("com.fasterxml.jackson.core:jackson-core")
 
-    testImplementation(libs.h2)
-    testImplementation(testFixtures(project(":polaris-core")))
+  testImplementation(libs.h2)
+  testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")
+  testImplementation(testFixtures(project(":polaris-core")))
 }
 
 tasks.register<Jar>("createTestConfJar") {
-    archiveFileName = "test-conf.jar"
-    destinationDirectory = layout.buildDirectory.dir("conf/eclipselink")
-    from("src/main/resources/META-INF/") { include("persistence.xml") }
+  archiveFileName = "test-conf.jar"
+  destinationDirectory = layout.buildDirectory.dir("conf/eclipselink")
+  from("src/main/resources/META-INF/") { include("persistence.xml") }
 }
 
 sourceSets { test { resources.srcDir(layout.buildDirectory.dir("conf")) } }

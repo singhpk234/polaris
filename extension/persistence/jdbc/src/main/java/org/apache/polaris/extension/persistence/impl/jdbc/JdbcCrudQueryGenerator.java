@@ -16,171 +16,236 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class JdbcCrudQueryGenerator {
 
-    public static String generateSelectQuery(Class<?> entityClass, Map<String, Object> whereClause, Integer limit, Integer offset, String orderBy) {
-        String tableName = entityClass.getSimpleName();
-        List<String> fields = new ArrayList<>();
+  private static final Pattern CAMEL_CASE_PATTERN =
+      Pattern.compile("(?<=[a-z0-9])[A-Z]|(?<=[A-Z])[A-Z](?=[a-z])");
 
-        for (Field field : entityClass.getDeclaredFields()) {
-            fields.add(field.getName());
-        }
+  public static String generateSelectQuery(
+      Class<?> entityClass, String filter, Integer limit, Integer offset, String orderBy) {
+    String tableName = entityClass.getSimpleName();
+    List<String> fields = new ArrayList<>();
 
-        String columns = String.join(", ", fields);
-        StringBuilder query = new StringBuilder("SELECT ").append(columns).append(" FROM ").append(tableName);
-
-        if (whereClause != null && !whereClause.isEmpty()) {
-            List<String> whereConditions = new ArrayList<>();
-            for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
-                String fieldName = entry.getKey();
-                Object value = entry.getValue();
-                if (value instanceof String) {
-                    whereConditions.add(fieldName + " = '" + value + "'");
-                } else {
-                    whereConditions.add(fieldName + " = " + value);
-                }
-            }
-            query.append(" WHERE ").append(String.join(" AND ", whereConditions));
-        }
-
-        if (orderBy != null && !orderBy.isEmpty()) {
-            query.append(" ORDER BY ").append(orderBy);
-        }
-
-        if (limit != null) {
-            query.append(" LIMIT ").append(limit);
-        }
-
-        if (offset != null && limit != null) { // Offset only makes sense with limit.
-            query.append(" OFFSET ").append(offset);
-        }
-
-        return query.toString();
+    for (Field field : entityClass.getDeclaredFields()) {
+      fields.add(camelToSnake(field.getName()));
     }
 
-    public static String generateInsertQuery(Class<?> entityClass, Map<String, Object> values) {
-        String tableName = entityClass.getSimpleName();
-        List<String> columns = new ArrayList<>();
-        List<String> valuePlaceholders = new ArrayList<>();
-        List<Object> actualValues = new ArrayList<>();
+    String columns = String.join(", ", fields);
+    StringBuilder query =
+        new StringBuilder("SELECT ").append(columns).append(" FROM ").append(tableName);
+    if (filter != null && !filter.isEmpty()) {
+      query.append(" WHERE ").append(String.join(" AND ", filter));
+    }
+    return query.toString();
+  }
 
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            columns.add(entry.getKey());
-            valuePlaceholders.add("?"); // Use placeholders for prepared statements
-            actualValues.add(entry.getValue());
-        }
+  public static String generateSelectQuery(
+      Class<?> entityClass,
+      Map<String, Object> whereClause,
+      Integer limit,
+      Integer offset,
+      String orderBy) {
+    String tableName = entityClass.getSimpleName();
+    List<String> fields = new ArrayList<>();
 
-        String columnsString = String.join(", ", columns);
-        String placeholdersString = String.join(", ", valuePlaceholders);
-
-        return "INSERT INTO " + tableName + " (" + columnsString + ") VALUES (" + placeholdersString + ")";
+    for (Field field : entityClass.getDeclaredFields()) {
+      fields.add(camelToSnake(field.getName()));
     }
 
-    public static String generateUpdateQuery(Class<?> entityClass, Map<String, Object> values, Map<String, Object> whereClause) {
-        String tableName = entityClass.getSimpleName();
-        List<String> setClauses = new ArrayList<>();
-        List<String> whereConditions = new ArrayList<>();
+    String columns = String.join(", ", fields);
+    StringBuilder query =
+        new StringBuilder("SELECT ").append(columns).append(" FROM ").append(tableName);
 
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            setClauses.add(entry.getKey() + " = ?"); // Placeholders
+    if (whereClause != null && !whereClause.isEmpty()) {
+      List<String> whereConditions = new ArrayList<>();
+      for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
+        String fieldName = entry.getKey();
+        Object value = entry.getValue();
+        if (value instanceof String) {
+          whereConditions.add(fieldName + " = '" + value + "'");
+        } else {
+          whereConditions.add(fieldName + " = " + value);
         }
-
-        if (whereClause != null && !whereClause.isEmpty()) {
-            for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
-                String fieldName = entry.getKey();
-                Object value = entry.getValue();
-                if (value instanceof String) {
-                    whereConditions.add(fieldName + " = '" + value + "'");
-                } else {
-                    whereConditions.add(fieldName + " = " + value);
-                }
-            }
-        }
-
-        String setClausesString = String.join(", ", setClauses);
-        String whereConditionsString = String.join(" AND ", whereConditions);
-
-        return "UPDATE " + tableName + " SET " + setClausesString + (whereClause != null && !whereClause.isEmpty() ? " WHERE " + whereConditionsString : "");
+      }
+      query.append(" WHERE ").append(String.join(" AND ", whereConditions));
     }
 
-    public static String generateDeleteQuery(Class<?> entityClass, Map<String, Object> whereClause) {
-        String tableName = entityClass.getSimpleName();
-        List<String> whereConditions = new ArrayList<>();
+    if (orderBy != null && !orderBy.isEmpty()) {
+      query.append(" ORDER BY ").append(orderBy);
+    }
 
-        if (whereClause != null && !whereClause.isEmpty()) {
-            for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
-                String fieldName = entry.getKey();
-                Object value = entry.getValue();
-                if (value instanceof String) {
-                    whereConditions.add(fieldName + " = '" + value + "'");
-                } else {
-                    whereConditions.add(fieldName + " = " + value);
-                }
-            }
+    if (limit != null) {
+      query.append(" LIMIT ").append(limit);
+    }
+
+    if (offset != null && limit != null) { // Offset only makes sense with limit.
+      query.append(" OFFSET ").append(offset);
+    }
+
+    return query.toString();
+  }
+
+  public static String generateInsertQuery(Object object, String tableName) {
+    if (object == null || tableName == null || tableName.isEmpty()) {
+      return null; // Or throw an exception
+    }
+
+    Class<?> objectClass = object.getClass();
+    Field[] fields = objectClass.getDeclaredFields();
+    List<String> columnNames = new ArrayList<>();
+    List<String> values = new ArrayList<>();
+
+    for (Field field : fields) {
+      field.setAccessible(true); // Allow access to private fields
+      try {
+        Object value = field.get(object);
+        if (value != null) { // Only include non-null fields
+          columnNames.add(camelToSnake(field.getName()));
+          values.add(value.toString());
         }
-
-        String whereConditionsString = String.join(" AND ", whereConditions);
-
-        return "DELETE FROM " + tableName + (whereClause != null && !whereClause.isEmpty() ? " WHERE " + whereConditionsString : "");
+      } catch (IllegalAccessException e) {
+        e.printStackTrace(); // Handle the exception appropriately
+        return null; // Or throw an exception
+      }
     }
 
-    // List command is already implemented in the Select query.
-    // Example Entity Class (similar to JPA entity)
-    public static class User {
-        public int id;
-        public String name;
-        public int age;
-        public String city;
+    if (columnNames.isEmpty()) {
+      return null; // Or throw an exception if no non-null fields are found
+    }
 
-        public User(int id, String name, int age, String city) {
-            this.id = id;
-            this.name = name;
-            this.age = age;
-            this.city = city;
+    String columns = String.join(", ", columnNames);
+    String valuesString = String.join(", ", values);
+
+    return "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + valuesString + ")";
+  }
+
+  public static String generateUpdateQuery(
+      Object object, Map<String, Object> whereClause, String tableName) {
+    List<String> setClauses = new ArrayList<>();
+    List<String> whereConditions = new ArrayList<>();
+    Class<?> objectClass = object.getClass();
+    Field[] fields = objectClass.getDeclaredFields();
+    List<String> columnNames = new ArrayList<>();
+    List<Object> values = new ArrayList<>();
+
+    for (Field field : fields) {
+      field.setAccessible(true); // Allow access to private fields
+      try {
+        Object value = field.get(object);
+        if (value != null) { // Only include non-null fields
+          columnNames.add(camelToSnake(field.getName()));
+          values.add(value);
         }
-
-        public User(){} //default constructor for reflection use.
+      } catch (IllegalAccessException e) {
+        e.printStackTrace(); // Handle the exception appropriately
+        return null; // Or throw an exception
+      }
     }
 
-    public static void main(String[] args) {
-        // Example Usage
-        Map<String, Object> userValues = new HashMap<>();
-        userValues.put("name", "Alice");
-        userValues.put("age", 25);
-        userValues.put("city", "London");
-
-        String insertQuery = generateInsertQuery(User.class, userValues);
-        System.out.println("Insert Query: " + insertQuery);
-
-        Map<String, Object> updateValues = new HashMap<>();
-        updateValues.put("age", 26);
-
-        Map<String, Object> whereClause = new HashMap<>();
-        whereClause.put("name", "Alice");
-
-        String updateQuery = generateUpdateQuery(User.class, updateValues, whereClause);
-        System.out.println("Update Query: " + updateQuery);
-
-        String deleteQuery = generateDeleteQuery(User.class, whereClause);
-        System.out.println("Delete Query: " + deleteQuery);
-
-        String selectQuery = generateSelectQuery(User.class, whereClause, null, null, null);
-        System.out.println("Select Query: " + selectQuery);
-
-        String listAll = generateSelectQuery(User.class, null, null, null, null);
-        System.out.println("List All Users: " + listAll);
-
-        String listFiltered = generateSelectQuery(User.class, whereClause, 10, 0, "age");
-        System.out.println("List Filtered Users: " + listFiltered);
-
+    for (int i = 0; i < columnNames.size(); i++) {
+      setClauses.add(columnNames.get(i) + " = " + values.get(i)); // Placeholders
     }
+
+    if (whereClause != null && !whereClause.isEmpty()) {
+      for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
+        String fieldName = entry.getKey();
+        Object value = entry.getValue();
+        if (value instanceof String) {
+          whereConditions.add(fieldName + " = '" + value + "'");
+        } else {
+          whereConditions.add(fieldName + " = " + value);
+        }
+      }
+    }
+
+    String setClausesString = String.join(", ", setClauses);
+    String whereConditionsString = String.join(" AND ", whereConditions);
+
+    return "UPDATE "
+        + tableName
+        + " SET "
+        + setClausesString
+        + (whereClause != null && !whereClause.isEmpty() ? " WHERE " + whereConditionsString : "");
+  }
+
+  public static String generateDeleteQuery(Map<String, Object> whereClause, String tableName) {
+    List<String> whereConditions = new ArrayList<>();
+
+    if (whereClause != null && !whereClause.isEmpty()) {
+      for (Map.Entry<String, Object> entry : whereClause.entrySet()) {
+        String fieldName = entry.getKey();
+        Object value = entry.getValue();
+        if (value instanceof String) {
+          whereConditions.add(fieldName + " = '" + value + "'");
+        } else {
+          whereConditions.add(fieldName + " = " + value);
+        }
+      }
+    }
+
+    String whereConditionsString = String.join(" AND ", whereConditions);
+
+    return "DELETE FROM "
+        + tableName
+        + (whereClause != null && !whereClause.isEmpty() ? " WHERE " + whereConditionsString : "");
+  }
+
+  public static String generateDeleteQuery(Object obj, String tableName) {
+    List<String> whereConditions = new ArrayList<>();
+
+    Class<?> objectClass = obj.getClass();
+    Field[] fields = objectClass.getDeclaredFields();
+
+    for (Field field : fields) {
+      field.setAccessible(true); // Allow access to private fields
+      try {
+        Object value = field.get(obj);
+        if (value != null) { // Only include non-null fields
+          if (value instanceof String) {
+            whereConditions.add(camelToSnake(field.getName()) + " = '" + value + "'");
+          } else {
+            whereConditions.add(camelToSnake(field.getName()) + " = " + value);
+          }
+        }
+      } catch (IllegalAccessException e) {
+        e.printStackTrace(); // Handle the exception appropriately
+        return null; // Or throw an exception
+      }
+    }
+
+    String whereConditionsString = "";
+    if (!whereConditions.isEmpty()) {
+      whereConditionsString = " WHERE " + String.join(" AND ", whereConditions);
+    }
+
+    return "DELETE FROM " + tableName + whereConditionsString;
+  }
+
+  public static String generateDeleteQuery(String whereClause, String tableName) {
+    String whereConditionsString = "";
+    if (whereClause != null && !whereClause.isEmpty()) {
+      whereConditionsString = " WHERE " + whereClause;
+    }
+    return "DELETE FROM " + tableName + whereConditionsString;
+  }
+
+  public static String camelToSnake(String camelCase) {
+    Matcher matcher = CAMEL_CASE_PATTERN.matcher(camelCase);
+    StringBuffer sb = new StringBuffer();
+    while (matcher.find()) {
+      matcher.appendReplacement(sb, "_" + matcher.group(0).toLowerCase(Locale.ROOT));
+    }
+    matcher.appendTail(sb);
+    return sb.toString().toLowerCase(Locale.ROOT);
+  }
 }

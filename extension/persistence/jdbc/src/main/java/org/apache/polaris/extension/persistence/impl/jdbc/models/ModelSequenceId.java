@@ -16,30 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.persistence.impl.jdbc;
+package org.apache.polaris.extension.persistence.impl.jdbc.models;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import org.apache.commons.dbcp2.BasicDataSource;
+public class ModelSequenceId {
+  private Long id;
 
-public class ConnectionManager {
-
-  private static final BasicDataSource dataSource = new BasicDataSource();
-
-  static {
-    dataSource.setUrl("jdbc:postgresql://localhost:3306/pk");
-    dataSource.setUsername("prashant");
-    dataSource.setPassword("pk");
-    // dataSourceConfig.setDriverClassName("org.postgresql.Driver");
-
-    dataSource.setMinIdle(5);
-    dataSource.setMaxIdle(10);
-    dataSource.setMaxOpenPreparedStatements(100);
+  public void setId(Long id) {
+    this.id = id;
   }
 
-  public static Connection getConnection() throws SQLException {
-    return dataSource.getConnection();
+  public Long getId() {
+    return id;
   }
-
-  private ConnectionManager() {} // prevents instantiation
 }
