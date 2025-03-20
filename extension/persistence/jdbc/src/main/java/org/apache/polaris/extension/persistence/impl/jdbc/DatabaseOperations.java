@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
 import java.sql.Connection;
@@ -26,30 +25,73 @@ import java.sql.Statement;
 
 public class DatabaseOperations {
 
-    public void executeQuery(String query) {
-        try (Connection connection = ConnectionManager.getConnection();
-             Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(query);
-
-            while (resultSet.next()) {
-                // Retrieve data by column name or index
-                int id = resultSet.getInt("id");
-                String name = resultSet.getString("name");
-                int age = resultSet.getInt("age");
-
-                // Alternatively, retrieve data by column index (1-based)
-                // int id = resultSet.getInt(1);
-                // String name = resultSet.getString(2);
-                // int age = resultSet.getInt(3);
-
-                // Process the retrieved data
-                System.out.println("ID: " + id + ", Name: " + name + ", Age: " + age);
-            }
-
-            // Perform database operations
-            // ...
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+  public ResultSet executeSelect(String query) {
+    try (Connection connection = ConnectionManager.getConnection();
+        Statement statement = connection.createStatement()) {
+      return statement.executeQuery(query);
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
+    return null;
+  }
+
+  public int executeUpdate(String query) {
+    try (Connection connection = ConnectionManager.getConnection();
+        Statement statement = connection.createStatement()) {
+      return statement.executeUpdate(query);
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return 0;
+  }
+
+  public void executeUpdate(String query, Statement statement) throws SQLException {
+    statement.executeUpdate(query);
+  }
+
+  public boolean runWithinTransaction(TransactionCallback callback) {
+    Connection connection = null;
+    try {
+      connection = ConnectionManager.getConnection();
+      connection.setAutoCommit(false); // Disable auto-commit to start a transaction
+
+      boolean result = false;
+      try (Statement statement = connection.createStatement()) {
+        result = callback.execute(statement);
+      }
+
+      if (result) {
+        connection.commit(); // Commit the transaction if successful
+        return true;
+      } else {
+        connection.rollback(); // Rollback the transaction if not successful
+        return false;
+      }
+
+    } catch (SQLException e) {
+      if (connection != null) {
+        try {
+          connection.rollback(); // Rollback on exception
+        } catch (SQLException ex) {
+          ex.printStackTrace(); // Log rollback exception
+        }
+      }
+      e.printStackTrace();
+      return false;
+    } finally {
+      if (connection != null) {
+        try {
+          connection.setAutoCommit(true); // Restore auto-commit
+          connection.close();
+        } catch (SQLException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
+
+  // Interface for transaction callback
+  public interface TransactionCallback {
+    boolean execute(Statement statement) throws SQLException;
+  }
 }
