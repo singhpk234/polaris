@@ -53,6 +53,7 @@ import org.apache.iceberg.rest.responses.LoadTableResponse;
 import org.apache.iceberg.rest.responses.LoadViewResponse;
 import org.apache.iceberg.rest.responses.UpdateNamespacePropertiesResponse;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.PropertyUtil;
 import org.apache.iceberg.util.Tasks;
 import org.apache.polaris.core.PolarisDiagnostics;
 import org.apache.polaris.core.auth.AuthenticatedPolarisPrincipal;
@@ -940,6 +941,7 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
   // TODO: this a quick and dirty patch to achieve rollback replace commit on conflicts.
   // Ideal way is override this, with the pre-requisite that commit function in CatalogHandler
   // is made public.
+  // This is copy of base class of CatalogHandler
   private static LoadTableResponse updateTableWithRollback(
       Catalog catalog, TableIdentifier ident, UpdateTableRequest request) {
     Schema EMPTY_SCHEMA = new Schema(new Types.NestedField[0]);
@@ -979,6 +981,13 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
               (taskOps) -> {
                 TableMetadata base = isRetry.get() ? taskOps.refresh() : taskOps.current();
                 isRetry.set(true);
+                // My prev pr : https://github.com/apache/iceberg/pull/5888
+                // taking this a table property.
+                boolean rollbackCompaction =
+                    PropertyUtil.propertyAsBoolean(
+                        taskOps.current().properties(),
+                        "rollback.compaction.on-conflicts.enabled",
+                        false);
 
                 // requirements are in:variable and should pass
                 try {
@@ -995,6 +1004,9 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                     taskOps.commit(base, updated);
                   }
                 } catch (ValidationException e) {
+                  if (!rollbackCompaction) {
+                    throw e;
+                  }
                   // snapshot has already been created
                   // nothing much can be done, we can move this
                   // to writer specific thing but it would be cool if catalog does this for us.
