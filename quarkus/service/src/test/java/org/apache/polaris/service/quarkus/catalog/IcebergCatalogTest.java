@@ -22,7 +22,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import com.azure.core.exception.HttpResponseException;
 import com.google.cloud.storage.StorageException;
@@ -37,12 +40,26 @@ import jakarta.ws.rs.core.SecurityContext;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.time.Clock;
-import java.util.*;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.NotImplementedException;
-import org.apache.iceberg.*;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.catalog.CatalogTests;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
@@ -127,15 +144,14 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 @TestProfile(IcebergCatalogTest.Profile.class)
 public abstract class IcebergCatalogTest extends CatalogTests<IcebergCatalog> {
 
-  DeleteFile FILE_A_DELETES =
-      FileMetadata.deleteFileBuilder(SPEC)
-          .ofPositionDeletes()
-          .withPath("/path/to/data-a-deletes.parquet")
-          .withFileSizeInBytes(10)
-          .withPartitionPath("id_bucket=0") // easy way to set partition data for now
-          .withRecordCount(1)
-          .build();
-  ;
+  //  DeleteFile FILE_A_DELETES =
+  //      FileMetadata.deleteFileBuilder(SPEC)
+  //          .ofPositionDeletes()
+  //          .withPath("/path/to/data-a-deletes.parquet")
+  //          .withFileSizeInBytes(10)
+  //          .withPartitionPath("id_bucket=0") // easy way to set partition data for now
+  //          .withRecordCount(1)
+  //          .build();
 
   public static class Profile implements QuarkusTestProfile {
 
