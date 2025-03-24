@@ -27,6 +27,7 @@ public class ConnectionManager {
   private static final BasicDataSource dataSource = new BasicDataSource();
 
   static {
+    // this should get all the strings from the conf file and load it
     dataSource.setUrl("jdbc:postgresql://localhost:3306/pk");
     dataSource.setUsername("prashant");
     dataSource.setPassword("pk");

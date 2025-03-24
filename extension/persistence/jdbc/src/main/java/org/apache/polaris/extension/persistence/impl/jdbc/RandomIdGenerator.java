@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.persistence.impl.jdbc.models;
 
-public class ModelSequenceId {
-  private Long id;
+package org.apache.polaris.extension.persistence.impl.jdbc;
 
-  public void setId(Long id) {
-    this.id = id;
-  }
+import java.util.UUID;
 
-  public Long getId() {
-    return id;
-  }
+public class RandomIdGenerator {
+    public static final RandomIdGenerator INSTANCE = new RandomIdGenerator();
+
+    public static final long MAX_ID = 0x7fffffffffffffffL;
+
+    public long nextId() {
+        // Make sure this is a positive number.
+        // conflicting ids is enforced by the table in postgres
+        return UUID.randomUUID().getLeastSignificantBits() & MAX_ID;
+    }
 }
