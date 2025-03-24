@@ -988,35 +988,25 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                         taskOps.current().properties(),
                         "rollback.compaction.on-conflicts.enabled",
                         false);
-
-                // requirements are in:variable and should pass
+                // otherwise create a metadataUpdate to remove the snapshots we had
+                // applied our rollback requests first
+                TableMetadata.Builder metadataBuilder = TableMetadata.buildFrom(base);
                 try {
                   request.requirements().forEach((requirement) -> requirement.validate(base));
                 } catch (CommitFailedException e) {
-                  throw new ValidationFailureException(e);
-                }
-
-                TableMetadata.Builder metadataBuilder = TableMetadata.buildFrom(base);
-                try {
-                  request.updates().forEach((update) -> update.applyTo(metadataBuilder));
-                  TableMetadata updated = metadataBuilder.build();
-                  if (!updated.changes().isEmpty()) {
-                    taskOps.commit(base, updated);
-                  }
-                } catch (ValidationException e) {
                   if (!rollbackCompaction) {
-                    throw e;
+                    throw new ValidationFailureException(e);
                   }
                   // snapshot has already been created
                   // nothing much can be done, we can move this
                   // to writer specific thing but it would be cool if catalog does this for us.
-                  MetadataUpdate.AddSnapshot addSnapshot = null;
+                  UpdateRequirement.AssertRefSnapshotID addSnapshot = null;
                   int found = 0;
-                  for (MetadataUpdate update : request.updates()) {
+                  for (UpdateRequirement requirement : request.requirements()) {
                     // there should be only add snapshot request
-                    if (update instanceof MetadataUpdate.AddSnapshot) {
+                    if (requirement instanceof UpdateRequirement.AssertRefSnapshotID) {
                       ++found;
-                      addSnapshot = (MetadataUpdate.AddSnapshot) update;
+                      addSnapshot = (UpdateRequirement.AssertRefSnapshotID) requirement;
                     }
                   }
 
@@ -1024,13 +1014,10 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                     // TODO: handle this case, find min snapshot id, to rollback to give it creates
                     // lineage
                     // lets not complicate things rn
-                    throw e;
+                    throw new ValidationFailureException(e);
                   }
 
-                  Long parentSnapshotId = addSnapshot.snapshot().parentId();
-                  // now check if the current metadata till parent is composed of replace
-                  // ops.
-                  boolean isComposedOfReplace = false;
+                  Long parentSnapshotId = addSnapshot.snapshotId();
                   // assuming the parent of the snapshot was there in the current
                   // snapshot of the history
                   Long parentToRollbackTo = ops.current().currentSnapshot().snapshotId();
@@ -1047,18 +1034,17 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
 
                   if (!Objects.equals(parentToRollbackTo, parentSnapshotId)) {
                     // nothing can be done
-                    throw e;
+                    throw new ValidationFailureException(e);
                   }
 
-                  // otherwise create a metadataUpdate to remove the snapshots we had
-                  // apply our rollback requests first
-                  TableMetadata.Builder metadataBuilder2 = TableMetadata.buildFrom(base);
+                  // close to 0 validation is done of update the expectation is that requirements
+                  // pass updates pass
                   updateToRemoveSnapshot.forEach((update -> update.applyTo(metadataBuilder)));
-                  request.updates().forEach((update) -> update.applyTo(metadataBuilder));
-                  TableMetadata updated = metadataBuilder.build();
-                  if (!updated.changes().isEmpty()) {
-                    taskOps.commit(base, updated);
-                  }
+                }
+                request.updates().forEach((update) -> update.applyTo(metadataBuilder));
+                TableMetadata updated = metadataBuilder.build();
+                if (!updated.changes().isEmpty()) {
+                  taskOps.commit(base, updated);
                 }
               });
     } catch (ValidationFailureException e) {
