@@ -18,8 +18,7 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
-import org.apache.polaris.core.entity.PolarisBaseEntity;
-import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelEntity;
+import org.apache.polaris.core.persistence.RetryOnConcurrencyException;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -33,9 +32,9 @@ public class DatabaseOperations {
     System.out.println("Executing query select query: " + query);
     try (Connection connection = ConnectionManager.getConnection();
         Statement statement = connection.createStatement()) {
-        ResultSet s = statement.executeQuery(query);
-        List<T> x = ResultSetToObjectConverter.convert(s, targetClass);
-        return x == null || x.isEmpty() ? List.of() : x;
+      ResultSet s = statement.executeQuery(query);
+      List<T> x = ResultSetToObjectConverter.convert(s, targetClass);
+      return x == null || x.isEmpty() ? null : x;
     } catch (Exception e) {
       e.printStackTrace();
       System.out.println(e.getMessage());
@@ -47,16 +46,21 @@ public class DatabaseOperations {
     System.out.println("Executing query: " + query);
     try (Connection connection = ConnectionManager.getConnection();
         Statement statement = connection.createStatement()) {
-      return statement.executeUpdate(query);
+        return statement.executeUpdate(query);
     } catch (SQLException e) {
       e.printStackTrace();
     }
     return 0;
   }
 
-  public void executeUpdate(String query, Statement statement) throws SQLException {
-    System.out.println("Executing query in trnasaction : " + query);
-    statement.executeUpdate(query);
+  public int executeUpdate(String query, Statement statement) throws SQLException {
+    System.out.println("Executing query in transaction : " + query);
+    int i = statement.executeUpdate(query);
+    System.out.println("Query executed: " + i);
+    return i;
+//    if (i == 0) {
+//      throw new RetryOnConcurrencyException("modified concurrently");
+//    }
   }
 
   public boolean runWithinTransaction(TransactionCallback callback) {

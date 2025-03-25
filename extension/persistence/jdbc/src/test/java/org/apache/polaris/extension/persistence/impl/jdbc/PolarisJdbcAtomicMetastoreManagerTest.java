@@ -35,7 +35,8 @@ public class PolarisJdbcAtomicMetastoreManagerTest extends BasePolarisMetaStoreM
   protected PolarisTestMetaStoreManager createPolarisTestMetaStoreManager() {
     PolarisDiagnostics diagServices = new PolarisDefaultDiagServiceImpl();
     PolarisJDBCBasePersistenceImpl basePersistence =
-        new PolarisJDBCBasePersistenceImpl(new DatabaseOperations(), RANDOM_SECRETS, Mockito.mock());
+        new PolarisJDBCBasePersistenceImpl(
+            new DatabaseOperations(), RANDOM_SECRETS, Mockito.mock());
     return new PolarisTestMetaStoreManager(
         new AtomicOperationMetaStoreManager(),
         new PolarisCallContext(

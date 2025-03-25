@@ -18,9 +18,6 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
-import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelGrantRecord;
-import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelPrincipalSecrets;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +25,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelGrantRecord;
+import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelPrincipalSecrets;
 
 public class JdbcCrudQueryGenerator {
 

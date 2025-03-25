@@ -264,24 +264,4 @@ public class ModelEntity {
     entity.setGrantRecordsVersion(model.getGrantRecordsVersion());
     return entity;
   }
-
-  public void update(PolarisBaseEntity entity) {
-    if (entity == null) return;
-
-    this.catalogId = entity.getCatalogId();
-    this.id = entity.getId();
-    this.parentId = entity.getParentId();
-    this.typeCode = entity.getTypeCode();
-    this.name = entity.getName();
-    this.entityVersion = entity.getEntityVersion();
-    this.subTypeCode = entity.getSubTypeCode();
-    this.createTimestamp = entity.getCreateTimestamp();
-    this.dropTimestamp = entity.getDropTimestamp();
-    this.purgeTimestamp = entity.getPurgeTimestamp();
-    this.toPurgeTimestamp = entity.getToPurgeTimestamp();
-    this.lastUpdateTimestamp = entity.getLastUpdateTimestamp();
-    this.properties = entity.getProperties();
-    this.internalProperties = entity.getInternalProperties();
-    this.grantRecordsVersion = entity.getGrantRecordsVersion();
-  }
 }

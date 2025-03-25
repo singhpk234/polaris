@@ -120,14 +120,4 @@ public class ModelPrincipalSecrets {
         model.getMainSecretHash(),
         model.getSecondarySecretHash());
   }
-
-  public void update(PolarisPrincipalSecrets principalSecrets) {
-    if (principalSecrets == null) return;
-
-    this.principalId = principalSecrets.getPrincipalId();
-    this.principalClientId = principalSecrets.getPrincipalClientId();
-    this.secretSalt = principalSecrets.getSecretSalt();
-    this.mainSecretHash = principalSecrets.getMainSecretHash();
-    this.secondarySecretHash = principalSecrets.getSecondarySecretHash();
-  }
 }
