@@ -1017,6 +1017,7 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                 // otherwise create a metadataUpdate to remove the snapshots we had
                 // applied our rollback requests first
                 TableMetadata.Builder metadataBuilder = TableMetadata.buildFrom(base);
+                TableMetadata newBase = base;
                 try {
                   request.requirements().forEach((requirement) -> requirement.validate(base));
                 } catch (CommitFailedException e) {
@@ -1066,9 +1067,22 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                   // close to 0 validation is done of update the expectation is that requirements
                   // pass updates pass
                   updateToRemoveSnapshot.forEach((update -> update.applyTo(metadataBuilder)));
+                  // rolled back update
+                  newBase = metadataBuilder.build();
                 }
-                request.updates().forEach((update) -> update.applyTo(metadataBuilder));
-                TableMetadata updated = metadataBuilder.build();
+
+                try {
+                  TableMetadata finalNewBase = newBase;
+                  request
+                      .requirements()
+                      .forEach((requirement) -> requirement.validate(finalNewBase));
+                } catch (CommitFailedException e) {
+                  throw new ValidationFailureException(e);
+                }
+
+                TableMetadata.Builder newMetadataBuilder = TableMetadata.buildFrom(newBase);
+                request.updates().forEach((update) -> update.applyTo(newMetadataBuilder));
+                TableMetadata updated = newMetadataBuilder.build();
                 if (!updated.changes().isEmpty()) {
                   taskOps.commit(base, updated);
                 }
