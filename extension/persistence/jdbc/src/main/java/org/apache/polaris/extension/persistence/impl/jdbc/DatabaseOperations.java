@@ -18,24 +18,33 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
+import org.apache.polaris.core.entity.PolarisBaseEntity;
+import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelEntity;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 public class DatabaseOperations {
 
-  public ResultSet executeSelect(String query) {
+  public <T> List<T> executeSelect(String query, Class<T> targetClass) {
+    System.out.println("Executing query select query: " + query);
     try (Connection connection = ConnectionManager.getConnection();
         Statement statement = connection.createStatement()) {
-      return statement.executeQuery(query);
-    } catch (SQLException e) {
+        ResultSet s = statement.executeQuery(query);
+        List<T> x = ResultSetToObjectConverter.convert(s, targetClass);
+        return x == null || x.isEmpty() ? List.of() : x;
+    } catch (Exception e) {
       e.printStackTrace();
+      System.out.println(e.getMessage());
     }
     return null;
   }
 
   public int executeUpdate(String query) {
+    System.out.println("Executing query: " + query);
     try (Connection connection = ConnectionManager.getConnection();
         Statement statement = connection.createStatement()) {
       return statement.executeUpdate(query);
@@ -46,10 +55,12 @@ public class DatabaseOperations {
   }
 
   public void executeUpdate(String query, Statement statement) throws SQLException {
+    System.out.println("Executing query in trnasaction : " + query);
     statement.executeUpdate(query);
   }
 
   public boolean runWithinTransaction(TransactionCallback callback) {
+    System.out.println("Executing transaction within callback: " + callback);
     Connection connection = null;
     try {
       connection = ConnectionManager.getConnection();

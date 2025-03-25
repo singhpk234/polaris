@@ -28,9 +28,10 @@ public class ConnectionManager {
 
   static {
     // this should get all the strings from the conf file and load it
-    dataSource.setUrl("jdbc:postgresql://localhost:3306/pk");
-    dataSource.setUsername("prashant");
-    dataSource.setPassword("pk");
+    // TODO: make connection
+    dataSource.setUrl("jdbc:postgresql://localhost:5432/postgres");
+    dataSource.setUsername("prsingh");
+    dataSource.setPassword("psinghvk");
     // dataSourceConfig.setDriverClassName("org.postgresql.Driver");
 
     dataSource.setMinIdle(5);

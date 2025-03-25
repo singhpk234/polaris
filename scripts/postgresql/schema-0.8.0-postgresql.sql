@@ -36,22 +36,23 @@
 -- CREATE SCHEMA example_schema;
 -- set search_path to example_schema;
 
-CREATE TABLE IF NOT EXISTS `entities` (
-    `catalog_id` BIGINT NOT NUL,
-    `id` BIGINT NOT NULL,
-    `parent_id` BIGINT NOT NULL,
-    `name` VARCHAR(126) NOT NULL,
-    `entity_version` INT NOT NULL,
-    `type_code` INT NOT NULL,
-    `sub_type_code` INT NOT NULL,
-    `create_timestamp` BIGINT NOT NULL,
-    `drop_timestamp` BIGINT NOT NULL
-    `purge_timestamp` BIGINT NOT NULL,
-    `last_timestamp` BIGINT NOT NULL,
-    `properties` TEXT NOT NULL,
-    `internal_properties` TEXT NOT NULL,
-    `grant_records_version` INT NOT NULL,
-    PRIMARY KEY (`catalog_id`, `id`)
+CREATE TABLE IF NOT EXISTS entities (
+    catalog_id BIGINT NOT NULL,
+    id BIGINT NOT NULL,
+    parent_id BIGINT NOT NULL,
+    name VARCHAR(126) NOT NULL,
+    entity_version INT NOT NULL,
+    type_code INT NOT NULL,
+    sub_type_code INT NOT NULL,
+    create_timestamp BIGINT NOT NULL,
+    drop_timestamp BIGINT NOT NULL,
+    purge_timestamp BIGINT NOT NULL,
+    to_purge_timestamp BIGINT NOT NULL,
+    last_update_timestamp BIGINT NOT NULL,
+    properties TEXT NOT NULL,
+    internal_properties TEXT NOT NULL,
+    grant_records_version INT NOT NULL,
+    PRIMARY KEY (catalog_id, id)
     );
 
 COMMENT ON TABLE entities IS 'all the entities';
@@ -66,19 +67,21 @@ COMMENT ON COLUMN entities.sub_type_code IS 'sub type of entity';
 COMMENT ON COLUMN entities.create_timestamp IS 'creation time of entity';
 COMMENT ON COLUMN entities.drop_timestamp IS 'time of drop of entity';
 COMMENT ON COLUMN entities.purge_timestamp IS 'time to start purging entity';
-COMMENT ON COLUMN entities.last_timestamp IS 'last time the entity is touched';
+COMMENT ON COLUMN entities.last_update_timestamp IS 'last time the entity is touched';
 COMMENT ON COLUMN entities.properties IS 'properties serialized as json';
 COMMENT ON COLUMN entities.internal_properties IS 'internal properties serialized as json';
 COMMENT ON COLUMN entities.grant_records_version IS 'grant record version of the entity';
 
-CREATE TABLE IF NOT EXISTS `grant_records` (
-    `securable_catalog_id` BIGINT NOT NULL,
-    `securable_id` BIGINT NOT NULL,
-    `grantee_catalog_id` BIGINT NOT NULL,
-    `grantee_id` BIGINT NOT NULL,
-    `previledge_id` BIGINT,
-    PRIMARY KEY (`securable_catalog_id`, `securable_id`, `grantee_catalog_id`, `grantee_id`)
+CREATE TABLE IF NOT EXISTS grant_records (
+    securable_catalog_id BIGINT NOT NULL,
+    securable_id BIGINT NOT NULL,
+    grantee_catalog_id BIGINT NOT NULL,
+    grantee_id BIGINT NOT NULL,
+    privilege_code INTEGER,
+    PRIMARY KEY (securable_catalog_id, securable_id, grantee_catalog_id, grantee_id, privilege_code)
 );
+
+CREATE INDEX IF NOT EXISTS idx_grant_records ON grant_records (securable_catalog_id, securable_id, grantee_catalog_id, grantee_id);
 
 COMMENT ON TABLE grant_records IS 'all grant records';
 
@@ -86,16 +89,16 @@ COMMENT ON COLUMN grant_records.securable_catalog_id IS 'catalog id of the secur
 COMMENT ON COLUMN grant_records.securable_id IS 'id of the securable';
 COMMENT ON COLUMN grant_records.grantee_catalog_id IS 'catalog id of the grantee';
 COMMENT ON COLUMN grant_records.grantee_id IS 'id of the grantee';
-COMMENT ON COLUMN grant_records.previledge_id IS 'priviledge id';
+COMMENT ON COLUMN grant_records.privilege_code IS 'priviledge id';
 
 
-CREATE TABLE IF NOT EXISTS `principal_secrets` (
-    `principal_id` BIGINT(20) UNSIGNED NOT NULL COMMENT 'principal id',
-    `principal_client_id` VARACHAR(20) NOT NULL COMMENT 'entity id',
-    `main_secret_hash` VARCHAR(20) NOT NULL COMMENT 'version that entity had when resolved',
-    `secret_hash` VARCHAR(20) NOT NULL COMMENT '',
-    `secret_salt` VARCHAR(20) NOT NULL COMMENT '',
-    PRIMARY KEY (`princial_id`)
+CREATE TABLE IF NOT EXISTS principal_secrets (
+    principal_id BIGINT NOT NULL,
+    principal_client_id VARCHAR(500) NOT NULL,
+    main_secret_hash VARCHAR(500) NOT NULL,
+    secondary_secret_hash VARCHAR(500) NOT NULL,
+    secret_salt VARCHAR(500) NOT NULL,
+    PRIMARY KEY (principal_client_id)
 );
 
 COMMENT ON TABLE principal_secrets IS 'store secrets';
@@ -103,5 +106,5 @@ COMMENT ON TABLE principal_secrets IS 'store secrets';
 COMMENT ON COLUMN principal_secrets.principal_id IS 'catalog id of the securable';
 COMMENT ON COLUMN principal_secrets.principal_client_id IS 'id of the securable';
 COMMENT ON COLUMN principal_secrets.main_secret_hash IS 'catalog id of the grantee';
-COMMENT ON COLUMN principal_secrets.secret_hash IS 'id of the grantee';
+COMMENT ON COLUMN principal_secrets.secondary_secret_hash IS 'id of the grantee';
 COMMENT ON COLUMN principal_secrets.secret_salt IS 'priviledge id';

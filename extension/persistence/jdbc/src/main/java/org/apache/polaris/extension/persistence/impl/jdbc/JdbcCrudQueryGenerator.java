@@ -18,6 +18,9 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
+import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelGrantRecord;
+import org.apache.polaris.extension.persistence.impl.jdbc.models.ModelPrincipalSecrets;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +36,13 @@ public class JdbcCrudQueryGenerator {
 
   public static String generateSelectQuery(
       Class<?> entityClass, String filter, Integer limit, Integer offset, String orderBy) {
-    String tableName = entityClass.getSimpleName();
+    String tableName = "entities";
+    if (entityClass.equals(ModelGrantRecord.class)) {
+      tableName = "grant_records";
+    } else if (entityClass.equals(ModelPrincipalSecrets.class)) {
+      tableName = "principal_secrets";
+    }
+    tableName = "polaris." + tableName;
     List<String> fields = new ArrayList<>();
 
     for (Field field : entityClass.getDeclaredFields()) {
@@ -55,7 +64,13 @@ public class JdbcCrudQueryGenerator {
       Integer limit,
       Integer offset,
       String orderBy) {
-    String tableName = entityClass.getSimpleName();
+    String tableName = "entities";
+    if (entityClass.equals(ModelGrantRecord.class)) {
+      tableName = "grant_records";
+    } else if (entityClass.equals(ModelPrincipalSecrets.class)) {
+      tableName = "principal_secrets";
+    }
+    tableName = "polaris." + tableName;
     List<String> fields = new ArrayList<>();
 
     for (Field field : entityClass.getDeclaredFields()) {
@@ -111,7 +126,7 @@ public class JdbcCrudQueryGenerator {
         Object value = field.get(object);
         if (value != null) { // Only include non-null fields
           columnNames.add(camelToSnake(field.getName()));
-          values.add(value.toString());
+          values.add("'" + value.toString() + "'");
         }
       } catch (IllegalAccessException e) {
         e.printStackTrace(); // Handle the exception appropriately
@@ -144,7 +159,7 @@ public class JdbcCrudQueryGenerator {
         Object value = field.get(object);
         if (value != null) { // Only include non-null fields
           columnNames.add(camelToSnake(field.getName()));
-          values.add(value);
+          values.add("'" + value.toString() + "'");
         }
       } catch (IllegalAccessException e) {
         e.printStackTrace(); // Handle the exception appropriately
