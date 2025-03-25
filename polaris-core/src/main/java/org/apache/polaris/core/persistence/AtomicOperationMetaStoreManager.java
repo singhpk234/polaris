@@ -1508,7 +1508,7 @@ public class AtomicOperationMetaStoreManager extends BaseMetaStoreManager {
     // are found anymore, if we happen to fail to lease any tasks at all due to all of them
     // hitting concurrency errors, we need to just throw a concurrency exception rather than
     // returning an empty list.
-    if (loadedTasks.isEmpty() && failedLeaseCount.get() > 0) {
+    if ((loadedTasks.isEmpty() && failedLeaseCount.get() > 0)) {
       // TODO: Currently the contract defined by BasePolarisMetaStoreManagerTest expects either
       // a thrown RetryOnConcurrencyException or else a successful EntitiesResult in the face
       // of concurrent loadTasks calls; this is inconsistent with the rest of the

@@ -210,7 +210,7 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
     params.put("id", entityId);
     params.put("type_code", typeCode);
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, null);
+        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
     System.out.println("Executing query: " + query);
     PolarisBaseEntity b = getPolarisBaseEntity(query);
     System.out.println("Generated entity: " + b);
@@ -229,7 +229,7 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
       params.put("name", name);
     }
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, 1, null, null);
+        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, 1, null, "last_update_timestamp");
     return getPolarisBaseEntity(query);
   }
 
@@ -335,7 +335,7 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
     params.put("type_code", entityType.getCode());
     String query =
         JdbcCrudQueryGenerator.generateSelectQuery(
-            ModelEntity.class, params, limit, null, null);
+            ModelEntity.class, params, limit, null, "last_update_timestamp");
     List<ModelEntity> results = databaseOperations.executeSelect(query, ModelEntity.class);
     return results == null
         ? Collections.emptyList()
@@ -354,7 +354,7 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
     params.put("catalog_id", catalogId);
     params.put("id", entityId);
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, null);
+        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
     PolarisBaseEntity b = getPolarisBaseEntity(query);
     return b == null ? 0 : b.getGrantRecordsVersion();
   }
@@ -428,7 +428,7 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
       params.put("entity_type", optionalEntityType.getCode());
     }
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, null);
+        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
     List<ModelEntity> results = databaseOperations.executeSelect(query, ModelEntity.class);
 
     return results != null && !results.isEmpty();

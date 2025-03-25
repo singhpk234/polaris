@@ -55,12 +55,14 @@ public class DatabaseOperations {
 
   public int executeUpdate(String query, Statement statement) throws SQLException {
     System.out.println("Executing query in transaction : " + query);
-    int i = statement.executeUpdate(query);
+    int i = 0;
+    try {
+       i = statement.executeUpdate(query);
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
     System.out.println("Query executed: " + i);
     return i;
-//    if (i == 0) {
-//      throw new RetryOnConcurrencyException("modified concurrently");
-//    }
   }
 
   public boolean runWithinTransaction(TransactionCallback callback) {

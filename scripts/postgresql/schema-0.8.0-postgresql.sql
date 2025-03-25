@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS entities (
     properties TEXT NOT NULL,
     internal_properties TEXT NOT NULL,
     grant_records_version INT NOT NULL,
-    PRIMARY KEY (catalog_id, id)
+    PRIMARY KEY (catalog_id, id),
+    CONSTRAINT constraint_name UNIQUE (catalog_id, parent_id, type_code, name)
     );
 
 COMMENT ON TABLE entities IS 'all the entities';
