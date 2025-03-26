@@ -32,12 +32,12 @@ services:
     depends_on:
       polaris-bootstrap:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
+#      postgres:
+#        condition: service_healthy
     environment:
       JAVA_DEBUG: "true"
       JAVA_DEBUG_PORT: "*:5005"
-      polaris.persistence.type: eclipse-link
+      polaris.persistence.type: relational-jdbc
       polaris.persistence.eclipselink.configuration-file: /deployments/config/eclipselink/persistence.xml
       polaris.realm-context.realms: POLARIS
       quarkus.otel.sdk.disabled: "true"
@@ -48,32 +48,33 @@ services:
       interval: 2s
       timeout: 10s
       retries: 10
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   polaris-purge:
     # IMPORTANT: the image MUST contain the Postgres JDBC driver and EclipseLink dependencies, see README for instructions
     image: apache/polaris-admin-tool:postgres-latest
-    depends_on:
-      postgres:
-        condition: service_started
     environment:
-      polaris.persistence.type: eclipse-link
+      polaris.persistence.type: relational-jdbc
       polaris.persistence.eclipselink.configuration-file: /deployments/config/eclipselink/persistence.xml
     volumes:
       - ../assets/eclipselink/:/deployments/config/eclipselink
     command:
       - "purge"
       - "--realm=POLARIS"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   polaris-bootstrap:
     # IMPORTANT: the image MUST contain the Postgres JDBC driver and EclipseLink dependencies, see README for instructions
     image: apache/polaris-admin-tool:postgres-latest
     depends_on:
+#      postgres:
+#        condition: service_healthy
       polaris-purge:
         condition: service_started
-      postgres:
-        condition: service_healthy
     environment:
-      polaris.persistence.type: eclipse-link
+      polaris.persistence.type: relational-jdbc
       polaris.persistence.eclipselink.configuration-file: /deployments/config/eclipselink/persistence.xml
     volumes:
       - ../assets/eclipselink/:/deployments/config/eclipselink
@@ -81,6 +82,8 @@ services:
       - "bootstrap"
       - "--realm=POLARIS"
       - "--credential=POLARIS,root,s3cr3t"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   polaris-setup:
     image: alpine/curl
@@ -90,32 +93,34 @@ services:
     volumes:
       - ../assets/polaris/:/polaris
     entrypoint: '/bin/sh -c "chmod +x /polaris/create-catalog.sh && /polaris/create-catalog.sh"'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  postgres:
-    image: postgres:17.4
-    ports:
-      - "5432:5432"
-    # set shared memory limit when using docker-compose
-    shm_size: 128mb
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: POLARIS
-      POSTGRES_INITDB_ARGS: "--encoding UTF8 --data-checksums"
-    volumes:
-      # Bind local conf file to a convenient location in the container
-      - type: bind
-        source: ./postgresql.conf
-        target: /etc/postgresql/postgresql.conf
-    command:
-      - "postgres"
-      - "-c"
-      - "config_file=/etc/postgresql/postgresql.conf"
-    healthcheck:
-      test: "pg_isready -U postgres"
-      interval: 5s
-      timeout: 2s
-      retries: 15
+#  postgres:
+#    image: postgres:17.4
+#    ports:
+#      - "5432:5432"
+#    # set shared memory limit when using docker-compose
+#    shm_size: 128mb
+#    environment:
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres
+#      POSTGRES_DB: POLARIS
+#      POSTGRES_INITDB_ARGS: "--encoding UTF8 --data-checksums"
+#    volumes:
+#      # Bind local conf file to a convenient location in the container
+#      - type: bind
+#        source: ./postgresql.conf
+#        target: /etc/postgresql/postgresql.conf
+#    command:
+#      - "postgres"
+#      - "-c"
+#      - "config_file=/etc/postgresql/postgresql.conf"
+#    healthcheck:
+#      test: "pg_isready -U postgres"
+#      interval: 5s
+#      timeout: 2s
+#      retries: 15
 
   spark-sql:
     image: apache/spark:3.5.5-java17-python3
@@ -144,3 +149,5 @@ services:
       --conf, "spark.sql.catalogImplementation=in-memory",
       --conf, "spark.driver.extraJavaOptions=-Divy.cache.dir=/tmp -Divy.home=/tmp"
     ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
