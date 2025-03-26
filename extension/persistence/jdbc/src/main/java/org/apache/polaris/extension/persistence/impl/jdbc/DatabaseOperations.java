@@ -18,8 +18,6 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
-import org.apache.polaris.core.persistence.RetryOnConcurrencyException;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -46,7 +44,7 @@ public class DatabaseOperations {
     System.out.println("Executing query: " + query);
     try (Connection connection = ConnectionManager.getConnection();
         Statement statement = connection.createStatement()) {
-        return statement.executeUpdate(query);
+      return statement.executeUpdate(query);
     } catch (SQLException e) {
       e.printStackTrace();
     }
@@ -57,7 +55,7 @@ public class DatabaseOperations {
     System.out.println("Executing query in transaction : " + query);
     int i = 0;
     try {
-       i = statement.executeUpdate(query);
+      i = statement.executeUpdate(query);
     } catch (SQLException e) {
       e.printStackTrace();
     }

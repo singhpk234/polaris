@@ -29,7 +29,7 @@ public class ConnectionManager {
   static {
     // this should get all the strings from the conf file and load it
     // TODO: make connection
-    dataSource.setUrl("jdbc:postgresql://host.docker.internal:5432/postgres");
+    dataSource.setUrl("jdbc:postgresql://localhost:5432/postgres");
     dataSource.setUsername("prsingh");
     dataSource.setPassword("psinghvk");
     // dataSourceConfig.setDriverClassName("org.postgresql.Driver");

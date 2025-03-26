@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 import org.apache.polaris.core.PolarisCallContext;
 import org.apache.polaris.core.entity.*;
 import org.apache.polaris.core.persistence.*;
-import org.apache.polaris.core.persistence.dao.entity.EntityResult;
 import org.apache.polaris.core.storage.PolarisStorageConfigurationInfo;
 import org.apache.polaris.core.storage.PolarisStorageIntegration;
 import org.apache.polaris.core.storage.PolarisStorageIntegrationProvider;
@@ -57,10 +56,10 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
 
   @Override
   public void writeEntity(
-          @Nonnull PolarisCallContext callCtx,
-          @Nonnull PolarisBaseEntity entity,
-          boolean nameOrParentChanged,
-          PolarisBaseEntity originalEntity) {
+      @Nonnull PolarisCallContext callCtx,
+      @Nonnull PolarisBaseEntity entity,
+      boolean nameOrParentChanged,
+      PolarisBaseEntity originalEntity) {
     ModelEntity modelEntity = ModelEntity.fromEntity(entity);
     String query;
     if (originalEntity == null) {
@@ -96,17 +95,25 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
             PolarisBaseEntity entity = entities.get(i);
             ModelEntity modelEntity = ModelEntity.fromEntity(entity);
 
-            // first, check if the entity has already been created, in which case we will simply return it
-            PolarisBaseEntity entityFound = lookupEntity(
-                            callCtx, entity.getCatalogId(), entity.getId(), entity.getTypeCode());
+            // first, check if the entity has already been created, in which case we will simply
+            // return it
+            PolarisBaseEntity entityFound =
+                lookupEntity(callCtx, entity.getCatalogId(), entity.getId(), entity.getTypeCode());
             if (entityFound != null) {
               // probably the client retried, simply return it
-              // TODO: Check correctness of returning entityFound vs entity here. It may have already
+              // TODO: Check correctness of returning entityFound vs entity here. It may have
+              // already
               // been updated after the creation.
               continue;
             }
             // lookup by name
-            EntityNameLookupRecord exists = lookupEntityIdAndSubTypeByName(callCtx, entity.getCatalogId(), entity.getParentId(), entity.getTypeCode(), entity.getName());
+            EntityNameLookupRecord exists =
+                lookupEntityIdAndSubTypeByName(
+                    callCtx,
+                    entity.getCatalogId(),
+                    entity.getParentId(),
+                    entity.getTypeCode(),
+                    entity.getName());
             if (exists != null) {
               throw new EntityAlreadyExistsException(entity);
             }
@@ -210,7 +217,8 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
     params.put("id", entityId);
     params.put("type_code", typeCode);
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
+        JdbcCrudQueryGenerator.generateSelectQuery(
+            ModelEntity.class, params, null, null, "last_update_timestamp");
     System.out.println("Executing query: " + query);
     PolarisBaseEntity b = getPolarisBaseEntity(query);
     System.out.println("Generated entity: " + b);
@@ -229,7 +237,8 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
       params.put("name", name);
     }
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, 1, null, "last_update_timestamp");
+        JdbcCrudQueryGenerator.generateSelectQuery(
+            ModelEntity.class, params, 1, null, "last_update_timestamp");
     return getPolarisBaseEntity(query);
   }
 
@@ -270,21 +279,22 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
   @Override
   public List<PolarisChangeTrackingVersions> lookupEntityVersions(
       PolarisCallContext callCtx, List<PolarisEntityId> entityIds) {
-    Map<PolarisEntityId, ModelEntity> idToEntityMap = lookupEntities(callCtx, entityIds).stream()
+    Map<PolarisEntityId, ModelEntity> idToEntityMap =
+        lookupEntities(callCtx, entityIds).stream()
             .collect(
-                    Collectors.toMap(
-                            entry -> new PolarisEntityId(entry.getCatalogId(), entry.getId()),
-                            ModelEntity::fromEntity));
+                Collectors.toMap(
+                    entry -> new PolarisEntityId(entry.getCatalogId(), entry.getId()),
+                    ModelEntity::fromEntity));
     return entityIds.stream()
-            .map(
-                    entityId -> {
-                      ModelEntity entity = idToEntityMap.getOrDefault(entityId, null);
-                      return entity == null
-                              ? null
-                              : new PolarisChangeTrackingVersions(
-                              entity.getEntityVersion(), entity.getGrantRecordsVersion());
-                    })
-            .collect(Collectors.toList());
+        .map(
+            entityId -> {
+              ModelEntity entity = idToEntityMap.getOrDefault(entityId, null);
+              return entity == null
+                  ? null
+                  : new PolarisChangeTrackingVersions(
+                      entity.getEntityVersion(), entity.getGrantRecordsVersion());
+            })
+        .collect(Collectors.toList());
   }
 
   @Nonnull
@@ -354,7 +364,8 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
     params.put("catalog_id", catalogId);
     params.put("id", entityId);
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
+        JdbcCrudQueryGenerator.generateSelectQuery(
+            ModelEntity.class, params, null, null, "last_update_timestamp");
     PolarisBaseEntity b = getPolarisBaseEntity(query);
     return b == null ? 0 : b.getGrantRecordsVersion();
   }
@@ -428,7 +439,8 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
       params.put("entity_type", optionalEntityType.getCode());
     }
     String query =
-        JdbcCrudQueryGenerator.generateSelectQuery(ModelEntity.class, params, null, null, "last_update_timestamp");
+        JdbcCrudQueryGenerator.generateSelectQuery(
+            ModelEntity.class, params, null, null, "last_update_timestamp");
     List<ModelEntity> results = databaseOperations.executeSelect(query, ModelEntity.class);
 
     return results != null && !results.isEmpty();
