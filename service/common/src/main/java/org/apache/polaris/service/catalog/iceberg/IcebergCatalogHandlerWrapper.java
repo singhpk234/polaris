@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.SecurityContext;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -994,7 +995,7 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                 TableMetadata base = isRetry.get() ? taskOps.refresh() : taskOps.current();
                 isRetry.set(true);
                 // My prev pr : https://github.com/apache/iceberg/pull/5888
-                // taking this a table property.
+                // Taking this a table property.
                 boolean rollbackCompaction =
                     PropertyUtil.propertyAsBoolean(
                         taskOps.current().properties(),
@@ -1010,9 +1011,12 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                   if (!rollbackCompaction) {
                     throw new ValidationFailureException(e);
                   }
-                  // snapshot has already been created
-                  // nothing much can be done, we can move this
+                  // Since snapshot has already been created.
+                  // Nothing much can be done, we can move this
                   // to writer specific thing, but it would be cool if catalog does this for us.
+                  // Inspect that the requirements states that snapshot
+                  // ref needs to be asserted this usually means in the update section
+                  // it has addSnapshot and setSnapshotRef
                   UpdateRequirement.AssertRefSnapshotID addSnapshot = null;
                   int found = 0;
                   for (UpdateRequirement requirement : request.requirements()) {
@@ -1031,8 +1035,8 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                   }
 
                   Long parentSnapshotId = addSnapshot.snapshotId();
-                  // assuming the parent of the snapshot was there in the current
-                  // snapshot of the history
+                  // so we will first check all the snapshots on the top of
+                  // base on which the snapshot we want to commit is made of REPLACE ops.
                   Long parentToRollbackTo = ops.current().currentSnapshot().snapshotId();
                   List<MetadataUpdate> updateToRemoveSnapshot = List.of();
                   while (!Objects.equals(parentToRollbackTo, parentSnapshotId)) {
@@ -1045,23 +1049,46 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                     parentToRollbackTo = snap.parentId();
                   }
 
-                  if (!Objects.equals(parentToRollbackTo, parentSnapshotId)) {
-                    // nothing can be done
+                  MetadataUpdate.SetSnapshotRef ref = null;
+                  // find the SetRefName snapshot update
+                  for (MetadataUpdate update : request.updates()) {
+                    if (update instanceof MetadataUpdate.SetSnapshotRef) {
+                      ++found;
+                      ref = (MetadataUpdate.SetSnapshotRef) update;
+                    }
+                  }
+
+                  if (found != 1 || (!Objects.equals(parentToRollbackTo, parentSnapshotId))) {
+                    // nothing can be done as this implies there was a non replace
+                    // snapshot in between or there is more than setRef ops, we don't know where
+                    // to go.
                     throw new ValidationFailureException(e);
                   }
 
-                  // close to 0 validation is done of update the expectation is that requirements
-                  // pass updates pass
+                  // first we should also set back the ref we wanted to set to back to the base
+                  // needed to this via reflection as SnapshotRefType is not public.
+                  // TODO: get rid of reflection to do it proper way.
+                  // This just for demo purpose.
+                  MetadataUpdate.SetSnapshotRef newRef = cloneObject(ref);
+                  setValueViaReflection(newRef, "snapshotId", parentSnapshotId);
+
+                  // apply set ref back to parent
+                  newRef.applyTo(metadataBuilder);
+                  // apply the remove snapshots update in the current metadata.
+                  // NOTE: we need to setRef to parent first and then apply remove as the remove
+                  // will drop
+                  // the tags / branch which don't have reference.
                   updateToRemoveSnapshot.forEach((update -> update.applyTo(metadataBuilder)));
-                  // rolled back update
+                  // rolled back update correctly now.
                   newBase = metadataBuilder.build();
                 }
 
+                // double check if the requirements passes now.
                 try {
-                  TableMetadata finalNewBase = newBase;
+                  TableMetadata baseWithRemovedSnaps = newBase;
                   request
                       .requirements()
-                      .forEach((requirement) -> requirement.validate(finalNewBase));
+                      .forEach((requirement) -> requirement.validate(baseWithRemovedSnaps));
                 } catch (CommitFailedException e) {
                   throw new ValidationFailureException(e);
                 }
@@ -1078,6 +1105,33 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
     }
 
     return ops.current();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> T cloneObject(T obj) {
+    try {
+      T clonedObj = (T) obj.getClass().getDeclaredConstructor().newInstance();
+      for (Field field : obj.getClass().getDeclaredFields()) {
+        field.setAccessible(true);
+        field.set(clonedObj, field.get(obj));
+      }
+      return clonedObj;
+    } catch (Exception e) {
+      throw new RuntimeException("Error cloning object: " + e.getMessage(), e);
+    }
+  }
+
+  private static void setValueViaReflection(Object obj, String fieldName, Object value) {
+    try {
+      Field field = obj.getClass().getDeclaredField(fieldName);
+      field.setAccessible(true);
+      field.set(obj, value);
+    } catch (NoSuchFieldException e) {
+
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "Error setting value for field " + fieldName + ": " + e.getMessage(), e);
+    }
   }
 
   private static class ValidationFailureException extends RuntimeException {
