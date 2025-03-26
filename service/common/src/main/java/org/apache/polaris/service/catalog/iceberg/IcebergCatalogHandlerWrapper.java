@@ -36,20 +36,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import org.apache.iceberg.BaseMetadataTable;
-import org.apache.iceberg.BaseTable;
-import org.apache.iceberg.BaseTransaction;
-import org.apache.iceberg.DataOperations;
-import org.apache.iceberg.MetadataUpdate;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.SortOrder;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.TableOperations;
-import org.apache.iceberg.Transaction;
-import org.apache.iceberg.UpdateRequirement;
+import org.apache.iceberg.*;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
@@ -941,8 +928,8 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
     if (isExternal(catalog)) {
       throw new BadRequestException("Cannot update table on external catalogs.");
     }
-    // TODO: hide it behind either table property or expose as a write property taken by
-    // either snapshot property
+    // TODO: pending discussion if table property is right way, or a writer specific knob is
+    // required.
     return doCatalogOperation(
         () -> updateTableWithRollback(baseCatalog, tableIdentifier, applyUpdateFilters(request)));
   }
@@ -966,8 +953,7 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
 
   // TODO: this a quick and dirty patch to achieve rollback replace commit on conflicts.
   // Ideal way is override this, with the pre-requisite that commit function in CatalogHandler
-  // is made public.
-  // This is copy of base class of CatalogHandler
+  // is made public. This is copy of main class of CatalogHandler
   private static LoadTableResponse updateTableWithRollback(
       Catalog catalog, TableIdentifier ident, UpdateTableRequest request) {
     Schema EMPTY_SCHEMA = new Schema(new Types.NestedField[0]);
@@ -1026,7 +1012,7 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                   }
                   // snapshot has already been created
                   // nothing much can be done, we can move this
-                  // to writer specific thing but it would be cool if catalog does this for us.
+                  // to writer specific thing, but it would be cool if catalog does this for us.
                   UpdateRequirement.AssertRefSnapshotID addSnapshot = null;
                   int found = 0;
                   for (UpdateRequirement requirement : request.requirements()) {
@@ -1049,8 +1035,8 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                   // snapshot of the history
                   Long parentToRollbackTo = ops.current().currentSnapshot().snapshotId();
                   List<MetadataUpdate> updateToRemoveSnapshot = List.of();
-                  while (ops.current().currentSnapshot().snapshotId() != parentSnapshotId) {
-                    Snapshot snap = ops.current().snapshot(parentSnapshotId);
+                  while (!Objects.equals(parentToRollbackTo, parentSnapshotId)) {
+                    Snapshot snap = ops.current().snapshot(parentToRollbackTo);
                     if (!DataOperations.REPLACE.equals(snap.operation())) {
                       break;
                     }

@@ -53,8 +53,12 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
@@ -144,14 +148,14 @@ import software.amazon.awssdk.services.sts.model.Credentials;
 @TestProfile(IcebergCatalogTest.Profile.class)
 public abstract class IcebergCatalogTest extends CatalogTests<IcebergCatalog> {
 
-  //  DeleteFile FILE_A_DELETES =
-  //      FileMetadata.deleteFileBuilder(SPEC)
-  //          .ofPositionDeletes()
-  //          .withPath("/path/to/data-a-deletes.parquet")
-  //          .withFileSizeInBytes(10)
-  //          .withPartitionPath("id_bucket=0") // easy way to set partition data for now
-  //          .withRecordCount(1)
-  //          .build();
+  DeleteFile FILE_A_DELETES =
+      FileMetadata.deleteFileBuilder(SPEC)
+          .ofPositionDeletes()
+          .withPath("/path/to/data-a-deletes.parquet")
+          .withFileSizeInBytes(10)
+          .withPartitionPath("id_bucket=0") // easy way to set partition data for now
+          .withRecordCount(1)
+          .build();
 
   public static class Profile implements QuarkusTestProfile {
 
@@ -454,16 +458,17 @@ public abstract class IcebergCatalogTest extends CatalogTests<IcebergCatalog> {
     catalog.loadTable(TABLE).newFastAppend().appendFile(FILE_A).commit();
     this.assertFiles(catalog.loadTable(TABLE), FILE_A);
     table.refresh();
-    //     Apply the deletes based on FILE_A
-    //     this should conflict when we try to commit
-    //     without the change
-    //    RowDelta rowDelta =
-    //        table
-    //            .newRowDelta()
-    //            .addDeletes(FILE_A_DELETES)
-    //                .validateFromSnapshot(lastSnapshotId)
-    //            .validateDataFilesExist(List.of(FILE_A.location()));
-    //    rowDelta.apply();
+    long lastSnapshotId = table.currentSnapshot().snapshotId();
+    //         Apply the deletes based on FILE_A
+    //         this should conflict when we try to commit
+    //         without the change
+    RowDelta rowDelta =
+        table
+            .newRowDelta()
+            .addDeletes(FILE_A_DELETES)
+            .validateFromSnapshot(lastSnapshotId)
+            .validateDataFilesExist(List.of(FILE_A.location()));
+    Snapshot uncomittedSnapshot = rowDelta.apply();
 
     // replace FILE_A with FILE_B
     catalog.loadTable(TABLE).newRewrite().addFile(FILE_B).deleteFile(FILE_A).commit();
