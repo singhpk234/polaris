@@ -67,6 +67,7 @@ public class JdbcMetaStoreManagerFactory implements MetaStoreManagerFactory {
   @Inject PolarisStorageIntegrationProvider storageIntegrationProvider;
   private boolean bootstrap;
 
+  @Inject
   protected JdbcMetaStoreManagerFactory(@Nonnull PolarisDiagnostics diagnostics) {
     this.diagnostics = diagnostics;
   }
