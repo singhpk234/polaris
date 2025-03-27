@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import jakarta.ws.rs.core.SecurityContext;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -95,6 +96,7 @@ import org.apache.polaris.service.context.CallContextCatalogFactory;
 import org.apache.polaris.service.types.NotificationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.reflect.ReflectionFactory;
 
 /**
  * Authorization-aware adapter between REST stubs and shared Iceberg SDK CatalogHandlers.
@@ -1094,6 +1096,22 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
                 }
 
                 TableMetadata.Builder newMetadataBuilder = TableMetadata.buildFrom(newBase);
+
+                // TODO: remove, reference code to just double validate cloning works
+                // push in OSS iceberg to get this in.
+                for (MetadataUpdate update : request.updates()) {
+                  if (update instanceof MetadataUpdate.SetSnapshotRef) {
+                    MetadataUpdate.SetSnapshotRef newRef =
+                        cloneObject((MetadataUpdate.SetSnapshotRef) update);
+                    setValueViaReflection(
+                        newRef,
+                        "snapshotId",
+                        ((MetadataUpdate.SetSnapshotRef) update).snapshotId());
+                    // testing reflection is going to work E2E
+                    System.out.println("newRef: " + newRef);
+                  }
+                }
+
                 request.updates().forEach((update) -> update.applyTo(newMetadataBuilder));
                 TableMetadata updated = newMetadataBuilder.build();
                 if (!updated.changes().isEmpty()) {
@@ -1110,14 +1128,27 @@ public class IcebergCatalogHandlerWrapper implements AutoCloseable {
   @SuppressWarnings("unchecked")
   private static <T> T cloneObject(T obj) {
     try {
-      T clonedObj = (T) obj.getClass().getDeclaredConstructor().newInstance();
-      for (Field field : obj.getClass().getDeclaredFields()) {
-        field.setAccessible(true);
-        field.set(clonedObj, field.get(obj));
+      Class<?> clazz = obj.getClass();
+
+      ReflectionFactory rf = ReflectionFactory.getReflectionFactory();
+      Constructor<?> objDef = Object.class.getDeclaredConstructor();
+      Constructor<?> intConstr = rf.newConstructorForSerialization(obj.getClass(), objDef);
+      T newObj = (T) intConstr.newInstance();
+
+      while (clazz != null) {
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+          field.setAccessible(true);
+          Object value = field.get(obj);
+          field.set(newObj, value);
+        }
+        clazz = clazz.getSuperclass();
       }
-      return clonedObj;
+
+      return newObj;
     } catch (Exception e) {
-      throw new RuntimeException("Error cloning object: " + e.getMessage(), e);
+      System.out.println("Its error :" + e);
+      throw new RuntimeException("Error cloning object: " + e.getMessage() + " " + e, e);
     }
   }
 
