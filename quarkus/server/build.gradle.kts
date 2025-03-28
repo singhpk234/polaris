@@ -51,6 +51,8 @@ dependencies {
     runtimeOnly(project(":polaris-eclipselink"))
   }
 
+  runtimeOnly(project(":polaris-jdbc"))
+
   // enforce the Quarkus _platform_ here, to get a consistent and validated set of dependencies
   implementation(enforcedPlatform(libs.quarkus.bom))
   implementation("io.quarkus:quarkus-container-image-docker")
