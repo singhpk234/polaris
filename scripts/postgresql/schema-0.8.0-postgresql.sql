@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS entities (
     purge_timestamp BIGINT NOT NULL,
     to_purge_timestamp BIGINT NOT NULL,
     last_update_timestamp BIGINT NOT NULL,
-    properties TEXT NOT NULL,
-    internal_properties TEXT NOT NULL,
+    properties JSONB not null default '{}'::JSONB,
+    internal_properties JSONB not null default '{}'::JSONB,
     grant_records_version INT NOT NULL,
     PRIMARY KEY (catalog_id, id),
     CONSTRAINT constraint_name UNIQUE (catalog_id, parent_id, type_code, name)

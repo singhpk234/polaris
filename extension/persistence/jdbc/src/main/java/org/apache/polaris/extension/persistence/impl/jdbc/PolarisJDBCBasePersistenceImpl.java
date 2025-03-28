@@ -89,59 +89,66 @@ public class PolarisJDBCBasePersistenceImpl implements BasePersistence, Integrat
       PolarisCallContext callCtx,
       List<PolarisBaseEntity> entities,
       List<PolarisBaseEntity> originalEntities) {
-    databaseOperations.runWithinTransaction(
-        statement -> {
-          for (int i = 0; i < entities.size(); i++) {
-            PolarisBaseEntity entity = entities.get(i);
-            ModelEntity modelEntity = ModelEntity.fromEntity(entity);
+    try {
+      databaseOperations.runWithinTransaction(
+          statement -> {
+            for (int i = 0; i < entities.size(); i++) {
+              PolarisBaseEntity entity = entities.get(i);
+              ModelEntity modelEntity = ModelEntity.fromEntity(entity);
 
-            // first, check if the entity has already been created, in which case we will simply
-            // return it
-            PolarisBaseEntity entityFound =
-                lookupEntity(callCtx, entity.getCatalogId(), entity.getId(), entity.getTypeCode());
-            if (entityFound != null) {
-              // probably the client retried, simply return it
-              // TODO: Check correctness of returning entityFound vs entity here. It may have
-              // already
-              // been updated after the creation.
-              continue;
-            }
-            // lookup by name
-            EntityNameLookupRecord exists =
-                lookupEntityIdAndSubTypeByName(
-                    callCtx,
-                    entity.getCatalogId(),
-                    entity.getParentId(),
-                    entity.getTypeCode(),
-                    entity.getName());
-            if (exists != null) {
-              throw new EntityAlreadyExistsException(entity);
-            }
-            String query;
-            if (originalEntities == null || originalEntities.get(i) == null) {
-              query = JdbcCrudQueryGenerator.generateInsertQuery(modelEntity, "polaris.entities");
-            } else {
-              // CAS
-              Map<String, Object> params = new HashMap<>();
-              params.put("id", originalEntities.get(i).getId());
-              params.put("catalog_id", originalEntities.get(i).getCatalogId());
-              params.put("entity_version", originalEntities.get(i).getEntityVersion());
-              query =
-                  JdbcCrudQueryGenerator.generateUpdateQuery(
-                      modelEntity, params, "polaris.entities");
-            }
-            int x = databaseOperations.executeUpdate(query, statement);
-            if (x == 0) {
-              if (originalEntities == null || originalEntities.get(i) == null) {
-                // bad interface.
+              // first, check if the entity has already been created, in which case we will simply
+              // return it
+              PolarisBaseEntity entityFound =
+                  lookupEntity(
+                      callCtx, entity.getCatalogId(), entity.getId(), entity.getTypeCode());
+              if (entityFound != null) {
+                // probably the client retried, simply return it
+                // TODO: Check correctness of returning entityFound vs entity here. It may have
+                // already
+                // been updated after the creation.
+                continue;
+              }
+              // lookup by name
+              EntityNameLookupRecord exists =
+                  lookupEntityIdAndSubTypeByName(
+                      callCtx,
+                      entity.getCatalogId(),
+                      entity.getParentId(),
+                      entity.getTypeCode(),
+                      entity.getName());
+              if (exists != null) {
                 throw new EntityAlreadyExistsException(entity);
+              }
+              String query;
+              if (originalEntities == null || originalEntities.get(i) == null) {
+                query = JdbcCrudQueryGenerator.generateInsertQuery(modelEntity, "polaris.entities");
               } else {
-                throw new RetryOnConcurrencyException("CAS failed");
+                // CAS
+                Map<String, Object> params = new HashMap<>();
+                params.put("id", originalEntities.get(i).getId());
+                params.put("catalog_id", originalEntities.get(i).getCatalogId());
+                params.put("entity_version", originalEntities.get(i).getEntityVersion());
+                query =
+                    JdbcCrudQueryGenerator.generateUpdateQuery(
+                        modelEntity, params, "polaris.entities");
+              }
+              int x = databaseOperations.executeUpdate(query, statement);
+              if (x == 0) {
+                if (originalEntities == null || originalEntities.get(i) == null) {
+                  // bad interface.
+                  throw new EntityAlreadyExistsException(entity);
+                } else {
+                  throw new RetryOnConcurrencyException("CAS failed");
+                }
               }
             }
-          }
-          return true;
-        });
+            return true;
+          });
+    } catch (Exception e) {
+      if (e instanceof EntityAlreadyExistsException) {
+        throw (EntityAlreadyExistsException) e;
+      }
+    }
   }
 
   @Override

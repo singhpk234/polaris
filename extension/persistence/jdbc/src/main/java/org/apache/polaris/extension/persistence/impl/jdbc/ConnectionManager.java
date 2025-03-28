@@ -18,30 +18,89 @@
  */
 package org.apache.polaris.extension.persistence.impl.jdbc;
 
-import java.sql.Connection;
-import java.sql.SQLException;
+import java.io.*;
+import java.io.IOException;
+import java.util.Properties;
+import javax.sql.DataSource;
 import org.apache.commons.dbcp2.BasicDataSource;
 
 public class ConnectionManager {
 
-  private static final BasicDataSource dataSource = new BasicDataSource();
+  private DataSource dataSource;
 
-  static {
-    // this should get all the strings from the conf file and load it
-    // TODO: make connection
-    dataSource.setUrl("jdbc:postgresql://host.docker.internal:5432/postgres");
-    dataSource.setUsername("prsingh");
-    dataSource.setPassword("psinghvk");
-    // dataSourceConfig.setDriverClassName("org.postgresql.Driver");
-
-    dataSource.setMinIdle(5);
-    dataSource.setMaxIdle(10);
-    dataSource.setMaxOpenPreparedStatements(100);
+  public ConnectionManager(String propertiesFilePath) throws IOException {
+    initializeDataSource(propertiesFilePath);
   }
 
-  public static Connection getConnection() throws SQLException {
-    return dataSource.getConnection();
+  public static Properties readPropertiesFromResource(String resourceFileName) throws IOException {
+    Properties properties = new Properties();
+    ClassLoader classLoader = ConnectionManager.class.getClassLoader();
+    System.out.println("Using class loader: " + classLoader);
+    System.out.println("Parent class loader: " + classLoader.getParent());
+    try {
+      properties.load(classLoader.getResourceAsStream("db.properties"));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return properties;
   }
 
-  private ConnectionManager() {} // prevents instantiation
+  private void initializeDataSource(String propertiesFilePath) throws IOException {
+    Properties properties = readPropertiesFromResource("db.properties");
+
+    BasicDataSource bds = new BasicDataSource();
+    bds.setUrl(properties.getProperty("jdbc.url"));
+    bds.setUsername(properties.getProperty("jdbc.username"));
+    bds.setPassword(properties.getProperty("jdbc.password"));
+    bds.setDriverClassName(properties.getProperty("jdbc.driverClassName"));
+
+    // Optional connection pool configuration
+    if (properties.getProperty("dbcp2.initialSize") != null) {
+      bds.setInitialSize(Integer.parseInt(properties.getProperty("dbcp2.initialSize")));
+    }
+    if (properties.getProperty("dbcp2.maxTotal") != null) {
+      bds.setMaxTotal(Integer.parseInt(properties.getProperty("dbcp2.maxTotal")));
+    }
+    if (properties.getProperty("dbcp2.maxIdle") != null) {
+      bds.setMaxIdle(Integer.parseInt(properties.getProperty("dbcp2.maxIdle")));
+    }
+    if (properties.getProperty("dbcp2.minIdle") != null) {
+      bds.setMinIdle(Integer.parseInt(properties.getProperty("dbcp2.minIdle")));
+    }
+    if (properties.getProperty("dbcp2.maxWaitMillis") != null) {
+      bds.setMaxWaitMillis(Long.parseLong(properties.getProperty("dbcp2.maxWaitMillis")));
+    }
+    if (properties.getProperty("dbcp2.testOnBorrow") != null) {
+      bds.setTestOnBorrow(Boolean.parseBoolean(properties.getProperty("dbcp2.testOnBorrow")));
+    }
+    if (properties.getProperty("dbcp2.testOnReturn") != null) {
+      bds.setTestOnReturn(Boolean.parseBoolean(properties.getProperty("dbcp2.testOnReturn")));
+    }
+    if (properties.getProperty("dbcp2.testWhileIdle") != null) {
+      bds.setTestWhileIdle(Boolean.parseBoolean(properties.getProperty("dbcp2.testWhileIdle")));
+    }
+    if (properties.getProperty("dbcp2.validationQuery") != null) {
+      bds.setValidationQuery(properties.getProperty("dbcp2.validationQuery"));
+    }
+    if (properties.getProperty("dbcp2.timeBetweenEvictionRunsMillis") != null) {
+      bds.setTimeBetweenEvictionRunsMillis(
+          Long.parseLong(properties.getProperty("dbcp2.timeBetweenEvictionRunsMillis")));
+    }
+    if (properties.getProperty("dbcp2.minEvictableIdleTimeMillis") != null) {
+      bds.setMinEvictableIdleTimeMillis(
+          Long.parseLong(properties.getProperty("dbcp2.minEvictableIdleTimeMillis")));
+    }
+
+    this.dataSource = bds;
+  }
+
+  public DataSource getDataSource() {
+    return dataSource;
+  }
+
+  public void closeDataSource() throws Exception {
+    if (dataSource instanceof BasicDataSource) {
+      ((BasicDataSource) dataSource).close();
+    }
+  }
 }

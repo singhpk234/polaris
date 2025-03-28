@@ -63,7 +63,7 @@ tasks.register<Jar>("createTestConfJar") {
   from("src/main/resources/META-INF/") { include("persistence.xml") }
 }
 
-sourceSets { test { resources.srcDir(layout.buildDirectory.dir("conf")) } }
+sourceSets { test { resources.srcDir(layout.buildDirectory.dir("resources/db.properties")) } }
 
 tasks.named("processTestResources") { dependsOn("createTestConfJar") }
 

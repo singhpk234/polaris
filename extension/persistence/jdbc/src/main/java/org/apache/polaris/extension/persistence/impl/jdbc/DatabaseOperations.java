@@ -26,9 +26,19 @@ import java.util.List;
 
 public class DatabaseOperations {
 
+  ConnectionManager connectionManager;
+
+  public DatabaseOperations() {
+    try {
+      this.connectionManager = new ConnectionManager("db.properties");
+    } catch (Exception e) {
+      this.connectionManager = null;
+    }
+  }
+
   public <T> List<T> executeSelect(String query, Class<T> targetClass) {
     System.out.println("Executing query select query: " + query);
-    try (Connection connection = ConnectionManager.getConnection();
+    try (Connection connection = connectionManager.getDataSource().getConnection();
         Statement statement = connection.createStatement()) {
       ResultSet s = statement.executeQuery(query);
       List<T> x = ResultSetToObjectConverter.convert(s, targetClass);
@@ -42,10 +52,10 @@ public class DatabaseOperations {
 
   public int executeUpdate(String query) {
     System.out.println("Executing query: " + query);
-    try (Connection connection = ConnectionManager.getConnection();
+    try (Connection connection = connectionManager.getDataSource().getConnection();
         Statement statement = connection.createStatement()) {
       return statement.executeUpdate(query);
-    } catch (SQLException e) {
+    } catch (Exception e) {
       e.printStackTrace();
     }
     return 0;
@@ -63,11 +73,11 @@ public class DatabaseOperations {
     return i;
   }
 
-  public boolean runWithinTransaction(TransactionCallback callback) {
+  public boolean runWithinTransaction(TransactionCallback callback) throws Exception {
     System.out.println("Executing transaction within callback: " + callback);
     Connection connection = null;
     try {
-      connection = ConnectionManager.getConnection();
+      connection = connectionManager.getDataSource().getConnection();
       connection.setAutoCommit(false); // Disable auto-commit to start a transaction
 
       boolean result = false;
@@ -83,7 +93,7 @@ public class DatabaseOperations {
         return false;
       }
 
-    } catch (SQLException e) {
+    } catch (Exception e) {
       if (connection != null) {
         try {
           connection.rollback(); // Rollback on exception
@@ -92,7 +102,7 @@ public class DatabaseOperations {
         }
       }
       e.printStackTrace();
-      return false;
+      throw e;
     } finally {
       if (connection != null) {
         try {

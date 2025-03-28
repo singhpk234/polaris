@@ -47,7 +47,12 @@ public class ResultSetToObjectConverter {
       T object = targetClass.getDeclaredConstructor().newInstance(); // Create a new instance
       for (int i = 1; i <= columnCount; i++) {
         String columnName = columnNames[i];
-        Object value = resultSet.getObject(i);
+        Object value;
+        if (columnName.contains("properties")) {
+          value = resultSet.getString(i);
+        } else {
+          value = resultSet.getObject(i);
+        }
 
         try {
           Field field = targetClass.getDeclaredField(columnName);
