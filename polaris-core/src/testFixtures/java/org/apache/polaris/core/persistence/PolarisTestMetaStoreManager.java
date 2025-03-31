@@ -321,6 +321,7 @@ public class PolarisTestMetaStoreManager {
         }
       }
       Assertions.assertThat(entity).isNotNull();
+      System.out.println(entities.toString());
       Assertions.assertThat(entities.get(entityId)).isEqualTo(entity);
     }
   }
