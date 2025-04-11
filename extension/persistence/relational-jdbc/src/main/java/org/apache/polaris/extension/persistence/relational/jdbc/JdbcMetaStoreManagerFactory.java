@@ -18,8 +18,8 @@
  */
 package org.apache.polaris.extension.persistence.relational.jdbc;
 
-import io.smallrye.common.constraint.Nullable;
 import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -76,11 +76,11 @@ public class JdbcMetaStoreManagerFactory implements MetaStoreManagerFactory {
     DatasourceOperations databaseOperations = new DatasourceOperations(ds);
     // TODO: see if we need to take script from Quarkus or can we just
     // use the script committed repo.
-    databaseOperations.executeScript();
+    databaseOperations.executeScript("scripts/postgres/schema-v1-postgres.sql");
     sessionSupplierMap.put(
         realmContext.getRealmIdentifier(),
         () ->
-            new PolarisJdbcBasePersistenceImpl(
+            new JdbcBasePersistenceImpl(
                 databaseOperations,
                 secretsGenerator(realmContext, rootCredentialsSet),
                 storageIntegrationProvider));
