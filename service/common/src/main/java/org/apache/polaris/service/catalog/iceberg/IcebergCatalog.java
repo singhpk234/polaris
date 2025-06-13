@@ -2471,7 +2471,7 @@ public class IcebergCatalog extends BaseMetastoreViewCatalog
     List<PolarisEntity.NameAndId> entities =
         PolarisEntity.toNameAndIdList(listResult.getEntities());
     List<TableIdentifier> identifiers =
-        PolarisCatalogHelpers.nameAndIdToTableIdentifiers(catalogPath, entities).stream().filter(x -> x.name().contains("polaris")).collect(Collectors.toList());
+        PolarisCatalogHelpers.nameAndIdToTableIdentifiers(catalogPath, entities).stream().filter(x -> !x.name().contains("polaris")).collect(Collectors.toList());
 
     return listResult
         .getPageToken()
