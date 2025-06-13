@@ -604,9 +604,14 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    return withCatalog(
-        securityContext, prefix, catalog -> Response.ok(catalog.loadView(tableIdentifier)).build());
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Response o = withCatalog(
+            securityContext, prefix, catalog -> Response.ok(catalog.loadView(tableIdentifier)).build());
+    LOGGER.atInfo().log("Loaded view " + o);
+    return o;
   }
 
   @Override
@@ -617,14 +622,19 @@ public class IcebergCatalogAdapter
       RealmContext realmContext,
       SecurityContext securityContext) {
     Namespace ns = decodeNamespace(namespace);
-    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(view));
-    return withCatalog(
+    // presently the assumption is read-only request, so the redirection always happen
+    // TODO: receive the context from the engine as input, to do redirection on reads only.
+    String fView = view + "_secure";
+    TableIdentifier tableIdentifier = TableIdentifier.of(ns, RESTUtil.decodeString(fView));
+    Response r =  withCatalog(
         securityContext,
         prefix,
         catalog -> {
           catalog.viewExists(tableIdentifier);
           return Response.status(Response.Status.NO_CONTENT).build();
         });
+    LOGGER.atInfo().log("Loaded view " + r);
+    return r;
   }
 
   @Override

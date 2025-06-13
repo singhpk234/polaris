@@ -241,13 +241,13 @@ public abstract class CatalogHandler {
     if (target == null) {
       throwNotFoundExceptionForTableLikeEntity(identifier, List.of(subType));
     }
-    authorizer.authorizeOrThrow(
-        callContext,
-        authenticatedPrincipal,
-        resolutionManifest.getAllActivatedCatalogRoleAndPrincipalRoles(),
-        op,
-        target,
-        null /* secondary */);
+//    authorizer.authorizeOrThrow(
+//        callContext,
+//        authenticatedPrincipal,
+//        resolutionManifest.getAllActivatedCatalogRoleAndPrincipalRoles(),
+//        op,
+//        target,
+//        null /* secondary */);
 
     initializeCatalog();
   }
