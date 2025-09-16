@@ -32,6 +32,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,11 @@ import org.apache.iceberg.rest.responses.ListTablesResponse;
 import org.apache.iceberg.rest.responses.LoadTableResponse;
 import org.apache.iceberg.rest.responses.LoadViewResponse;
 import org.apache.iceberg.rest.responses.UpdateNamespacePropertiesResponse;
+import org.apache.iceberg.rest.requests.PlanTableScanRequest;
+import org.apache.iceberg.rest.requests.FetchScanTasksRequest;
+import org.apache.iceberg.rest.responses.PlanTableScanResponse;
+import org.apache.iceberg.rest.responses.FetchPlanningResultResponse;
+import org.apache.iceberg.rest.responses.FetchScanTasksResponse;
 import org.apache.polaris.core.PolarisDiagnostics;
 import org.apache.polaris.core.auth.PolarisAuthorizableOperation;
 import org.apache.polaris.core.auth.PolarisAuthorizer;
@@ -133,6 +139,7 @@ public class IcebergCatalogHandler extends CatalogHandler implements AutoCloseab
   private final ReservedProperties reservedProperties;
   private final CatalogHandlerUtils catalogHandlerUtils;
   private final PolarisEventListener polarisEventListener;
+  private final ScanPlanningService scanPlanningService;
 
   // Catalog instance will be initialized after authorizing resolver successfully resolves
   // the catalog entity.
@@ -156,7 +163,8 @@ public class IcebergCatalogHandler extends CatalogHandler implements AutoCloseab
       ReservedProperties reservedProperties,
       CatalogHandlerUtils catalogHandlerUtils,
       Instance<ExternalCatalogFactory> externalCatalogFactories,
-      PolarisEventListener polarisEventListener) {
+      PolarisEventListener polarisEventListener,
+      ScanPlanningService scanPlanningService) {
     super(
         diagnostics,
         callContext,
@@ -171,6 +179,7 @@ public class IcebergCatalogHandler extends CatalogHandler implements AutoCloseab
     this.reservedProperties = reservedProperties;
     this.catalogHandlerUtils = catalogHandlerUtils;
     this.polarisEventListener = polarisEventListener;
+    this.scanPlanningService = scanPlanningService;
   }
 
   private CatalogEntity getResolvedCatalogEntity() {
@@ -1081,6 +1090,183 @@ public class IcebergCatalogHandler extends CatalogHandler implements AutoCloseab
           .build();
     } else {
       throw new IllegalArgumentException("Unrecognized snapshots: " + snapshots);
+    }
+  }
+
+  // Scan Planning API Methods
+
+  /**
+   * Submit a scan for planning.
+   *
+   * @param tableIdentifier the table to scan
+   * @param request the scan planning request
+   * @return the scan planning result
+   */
+  public PlanTableScanResponse planTableScan(
+      TableIdentifier tableIdentifier, PlanTableScanRequest request) {
+    PolarisAuthorizableOperation op = PolarisAuthorizableOperation.SCAN_PLAN_TABLE;
+    authorizeBasicTableLikeOperationOrThrow(
+        op, PolarisEntitySubType.ICEBERG_TABLE, tableIdentifier);
+
+    try {
+      Table table = baseCatalog.loadTable(tableIdentifier);
+      ScanPlanningService.ScanPlan scanPlan = 
+          scanPlanningService.createScanPlan(table, tableIdentifier, request);
+
+      switch (scanPlan.getStatus()) {
+        case COMPLETED:
+          return PlanTableScanResponse.builder()
+              .withStatus("completed")
+              .withPlanId(scanPlan.getPlanId())
+              .withFileScanTasks(scanPlan.getFileScanTasks())
+              .withPlanTasks(scanPlan.getPlanTaskIds())
+              .withDeleteFiles(scanPlan.getDeleteFiles())
+              .build();
+        case SUBMITTED:
+          return PlanTableScanResponse.builder()
+              .withStatus("submitted")
+              .withPlanId(scanPlan.getPlanId())
+              .build();
+        case FAILED:
+          throw new RuntimeException(
+              scanPlan.getErrorMessage().orElse("Scan planning failed"));
+        default:
+          throw new IllegalStateException("Unexpected scan plan status: " + scanPlan.getStatus());
+      }
+    } catch (NoSuchTableException e) {
+      throw e;
+    } catch (Exception e) {
+      LOGGER.error("Failed to plan table scan for {}", tableIdentifier, e);
+      throw new RuntimeException("Scan planning failed: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Fetch the result of scan planning for a plan-id.
+   *
+   * @param tableIdentifier the table identifier
+   * @param planId the plan ID to fetch results for
+   * @return the planning result
+   */
+  public FetchPlanningResultResponse fetchPlanningResult(
+      TableIdentifier tableIdentifier, String planId) {
+    PolarisAuthorizableOperation op = PolarisAuthorizableOperation.FETCH_SCAN_PLANNING_RESULT;
+    authorizeBasicTableLikeOperationOrThrow(
+        op, PolarisEntitySubType.ICEBERG_TABLE, tableIdentifier);
+
+    Optional<ScanPlanningService.ScanPlan> scanPlanOpt = scanPlanningService.getScanPlan(planId);
+    if (scanPlanOpt.isEmpty()) {
+      throw new NoSuchPlanIdException("Plan ID does not exist: " + planId);
+    }
+
+    ScanPlanningService.ScanPlan scanPlan = scanPlanOpt.get();
+    
+    // Verify the plan is for the correct table
+    if (!scanPlan.getTableIdentifier().equals(tableIdentifier)) {
+      throw new NoSuchPlanIdException("Plan ID does not exist for table: " + tableIdentifier);
+    }
+
+    switch (scanPlan.getStatus()) {
+      case COMPLETED:
+        return FetchPlanningResultResponse.builder()
+            .withStatus("completed")
+            .withFileScanTasks(scanPlan.getFileScanTasks())
+            .withPlanTasks(scanPlan.getPlanTaskIds())
+            .withDeleteFiles(scanPlan.getDeleteFiles())
+            .build();
+      case SUBMITTED:
+        return FetchPlanningResultResponse.builder()
+            .withStatus("submitted")
+            .build();
+      case CANCELLED:
+        return FetchPlanningResultResponse.builder()
+            .withStatus("cancelled")
+            .build();
+      case FAILED:
+        throw new RuntimeException(
+            scanPlan.getErrorMessage().orElse("Scan planning failed"));
+      default:
+        throw new IllegalStateException("Unexpected scan plan status: " + scanPlan.getStatus());
+    }
+  }
+
+  /**
+   * Cancel scan planning for a plan-id.
+   *
+   * @param tableIdentifier the table identifier
+   * @param planId the plan ID to cancel
+   */
+  public void cancelPlanning(TableIdentifier tableIdentifier, String planId) {
+    PolarisAuthorizableOperation op = PolarisAuthorizableOperation.CANCEL_SCAN_PLANNING;
+    authorizeBasicTableLikeOperationOrThrow(
+        op, PolarisEntitySubType.ICEBERG_TABLE, tableIdentifier);
+
+    Optional<ScanPlanningService.ScanPlan> scanPlanOpt = scanPlanningService.getScanPlan(planId);
+    if (scanPlanOpt.isEmpty()) {
+      // Per the API spec, canceling a non-existent plan should succeed silently
+      LOGGER.debug("Attempted to cancel non-existent plan ID: {}", planId);
+      return;
+    }
+
+    ScanPlanningService.ScanPlan scanPlan = scanPlanOpt.get();
+    
+    // Verify the plan is for the correct table
+    if (!scanPlan.getTableIdentifier().equals(tableIdentifier)) {
+      LOGGER.debug("Attempted to cancel plan ID {} for wrong table: {}", planId, tableIdentifier);
+      return;
+    }
+
+    boolean cancelled = scanPlanningService.cancelScanPlan(planId);
+    if (cancelled) {
+      LOGGER.info("Cancelled scan plan {} for table {}", planId, tableIdentifier);
+    } else {
+      LOGGER.debug("Plan {} was already completed or cancelled", planId);
+    }
+  }
+
+  /**
+   * Fetch result tasks for a plan task.
+   *
+   * @param tableIdentifier the table identifier
+   * @param request the fetch scan tasks request
+   * @return the scan tasks response
+   */
+  public FetchScanTasksResponse fetchScanTasks(
+      TableIdentifier tableIdentifier, FetchScanTasksRequest request) {
+    PolarisAuthorizableOperation op = PolarisAuthorizableOperation.FETCH_SCAN_TASKS;
+    authorizeBasicTableLikeOperationOrThrow(
+        op, PolarisEntitySubType.ICEBERG_TABLE, tableIdentifier);
+
+    try {
+      List<FileScanTask> tasks = scanPlanningService.fetchScanTasks(request.planTask());
+      
+      return FetchScanTasksResponse.builder()
+          .withFileScanTasks(tasks)
+          .withPlanTasks(Collections.emptyList()) // No additional plan tasks for this implementation
+          .withDeleteFiles(Collections.emptyList()) // Delete files already included in scan tasks
+          .build();
+    } catch (Exception e) {
+      LOGGER.error("Failed to fetch scan tasks for table {} with plan task {}", 
+          tableIdentifier, request.planTask(), e);
+      throw new NoSuchPlanTaskException("Plan task does not exist: " + request.planTask());
+    }
+  }
+
+  /**
+   * Exception for missing plan IDs.
+   */
+  public static class NoSuchPlanIdException extends RuntimeException {
+    public NoSuchPlanIdException(String message) {
+      super(message);
+    }
+  }
+
+  /**
+   * Exception for missing plan tasks.
+   */
+  public static class NoSuchPlanTaskException extends RuntimeException {
+    public NoSuchPlanTaskException(String message) {
+      super(message);
     }
   }
 
