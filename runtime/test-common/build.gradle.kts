@@ -42,6 +42,7 @@ dependencies {
   implementation("org.testcontainers:testcontainers")
   implementation("org.testcontainers:testcontainers-postgresql")
   implementation("org.testcontainers:testcontainers-cockroachdb")
+  implementation("org.testcontainers:mariadb")
 
   implementation(libs.testcontainers.keycloak) {
     exclude(group = "org.keycloak", module = "keycloak-admin-client")

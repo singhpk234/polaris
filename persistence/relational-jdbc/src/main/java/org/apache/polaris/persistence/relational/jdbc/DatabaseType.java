@@ -28,10 +28,13 @@ import java.util.Locale;
  * in the "cockroachdb" directory. While CockroachDB is PostgreSQL-compatible, having
  * separate schemas allows for CockroachDB-specific optimizations and avoids experimental
  * ALTER operations that CockroachDB doesn't fully support.
+ *
+ * <p>MariaDB is MySQL-compatible but has its own schema resources in the "mariadb" directory.
  */
 public enum DatabaseType {
   POSTGRES("postgres"),
   COCKROACHDB("cockroachdb"),
+  MARIADB("mariadb"),
   H2("h2");
 
   private final String displayName; // Store the user-friendly name
@@ -53,6 +56,7 @@ public enum DatabaseType {
     return switch (this) {
       case POSTGRES -> 3;  // PostgreSQL has schemas v1, v2, v3
       case COCKROACHDB -> 1;  // CockroachDB currently has only schema v1
+      case MARIADB -> 1;  // MariaDB currently has only schema v1
       case H2 -> 3;  // H2 uses same schemas as PostgreSQL
     };
   }
@@ -62,6 +66,7 @@ public enum DatabaseType {
       case "h2" -> DatabaseType.H2;
       case "postgresql" -> DatabaseType.POSTGRES;
       case "cockroachdb" -> DatabaseType.COCKROACHDB;
+      case "mariadb" -> DatabaseType.MARIADB;
       default -> throw new IllegalStateException("Unsupported DatabaseType: '" + displayName + "'");
     };
   }
@@ -94,6 +99,8 @@ public enum DatabaseType {
         inferredType = DatabaseType.COCKROACHDB;
       } else if (productName.contains("postgresql")) {
         inferredType = DatabaseType.POSTGRES;
+      } else if (productName.contains("mariadb")) {
+        inferredType = DatabaseType.MARIADB;
       } else if (productName.contains("h2")) {
         inferredType = DatabaseType.H2;
       }
