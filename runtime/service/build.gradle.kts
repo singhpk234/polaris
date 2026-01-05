@@ -60,6 +60,7 @@ dependencies {
   implementation("io.quarkus:quarkus-smallrye-context-propagation")
   implementation("io.quarkus:quarkus-smallrye-fault-tolerance")
   runtimeOnly("io.quarkus:quarkus-jdbc-postgresql")
+  runtimeOnly("io.quarkus:quarkus-jdbc-mariadb")
 
   implementation(libs.jakarta.enterprise.cdi.api)
   implementation(libs.jakarta.inject.api)

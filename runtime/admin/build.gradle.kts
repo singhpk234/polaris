@@ -36,6 +36,7 @@ dependencies {
   runtimeOnly("org.postgresql:postgresql")
 
   implementation("io.quarkus:quarkus-jdbc-postgresql")
+  implementation("io.quarkus:quarkus-jdbc-mariadb")
   implementation(enforcedPlatform(libs.quarkus.bom))
   implementation("io.quarkus:quarkus-picocli")
   implementation("io.quarkus:quarkus-container-image-docker")
